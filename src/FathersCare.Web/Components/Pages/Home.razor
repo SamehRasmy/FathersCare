@@ -1,0 +1,98 @@
+@page "/"
+@using FathersCare.Application.Abstractions
+@inject ICareOverviewService CareOverview
+
+<PageTitle>لوحة القيادة - Fathers Care</PageTitle>
+
+@if (Model is null)
+{
+    <p>جاري تحميل البيانات...</p>
+}
+else
+{
+    <section class="page-title">
+        <div>
+            <h1>مرحبًا، الأم مديرة الدار</h1>
+            <p>نظرة شاملة على دار القديسين استفانوس - المعادي</p>
+        </div>
+        <div class="toolbar">
+            <button class="btn">عرض اليوم</button>
+            <button class="btn primary">تسجيل نشاط جديد</button>
+        </div>
+    </section>
+
+    <div class="dashboard-grid">
+        <section class="stats-grid">
+            @foreach (var stat in Model.Stats)
+            {
+                <div class="stat-card @stat.Color"><div class="stat-icon">@stat.Icon</div><div><span>@stat.Title</span><strong>@stat.Value</strong><small>@stat.Caption</small></div></div>
+            }
+        </section>
+
+        <section class="priority-row">
+            @foreach (var dose in Model.PriorityDoses)
+            {
+                <div class="dose-card">
+                    <span class="status @dose.State">@dose.Status</span>
+                    <strong>@dose.Time</strong>
+                    <h3>@dose.Resident</h3>
+                    <p>@dose.Medicine - @dose.Dose</p>
+                    <table class="data-table"><tbody><tr><td>طريقة الاستخدام</td><td>@dose.Method</td></tr><tr><td>آخر جرعة</td><td>@dose.LastDose</td></tr></tbody></table>
+                    <button class="btn primary">متابعة الجرعة</button>
+                </div>
+            }
+        </section>
+
+        <section class="three-col">
+            <div class="panel">
+                <h2>تنبيهات الغرف</h2>
+                <table class="data-table"><tbody>@foreach (var row in Model.RoomAlerts) { <tr><td><span class="status @row.Status">@row.Label</span></td><td>@row.Value</td></tr> }</tbody></table>
+                <h2>أحداث اليوم المباشرة</h2>
+                <table class="data-table"><tbody>@foreach (var row in Model.LiveEvents) { <tr><td>@row.Label</td><td>@row.Value</td></tr> }</tbody></table>
+            </div>
+            <div class="panel map-card">
+                <h2>خريطة الدار</h2>
+                <div class="facility-map">
+                    @foreach (var room in Model.Rooms)
+                    {
+                        <div class="room @room.State">@room.Number</div>
+                    }
+                </div>
+            </div>
+            <div class="panel">
+                <h2>جدول اليوم</h2>
+                <table class="data-table"><tbody>@foreach (var item in Model.TodaySchedule) { <tr><td>@item.Time</td><td>@item.Title</td></tr> }</tbody></table>
+                <h2>إجراءات سريعة</h2>
+                <div class="quick-actions">
+                    <a class="mini-card" href="medications">تسجيل دواء</a>
+                    <a class="mini-card" href="nutrition">إضافة وجبة</a>
+                    <a class="mini-card" href="resident">ملف نزيل</a>
+                    <a class="mini-card" href="reports">تقرير يومي</a>
+                </div>
+            </div>
+        </section>
+
+        <section class="four-col">
+            <div class="panel"><h3>ملخص اليوم حتى الآن</h3><table class="data-table"><tbody><tr><td>تم إعطاؤها</td><td>@Model.GivenDoses جرعة</td></tr><tr><td>متبقية</td><td>@Model.RemainingDoses جرعات</td></tr><tr><td>متأخرة</td><td>@Model.LateDoses جرعة</td></tr></tbody></table></div>
+            <div class="panel"><h3>نسبة تسليم الجرعات</h3><div class="donut"><span>@Model.DoseCoveragePercent%</span></div></div>
+            <div class="panel"><h3>ملخص المطبخ</h3><table class="data-table"><tbody><tr><td>نسبة تسليم الوجبات</td><td>@Model.MealCoveragePercent%</td></tr><tr><td>الحالة</td><td><span class="status">متابعة من قاعدة البيانات</span></td></tr></tbody></table></div>
+            <div class="panel"><h3>المخزون - تنبيهات</h3><table class="data-table"><tbody>@foreach (var row in Model.LiveEvents.Take(2)) { <tr><td>@row.Value</td><td><span class="status warn">متابعة</span></td></tr> }</tbody></table></div>
+        </section>
+
+        <footer class="bottom-bar">
+            <span>آخر تحديث: @DateTime.Now.ToString("HH:mm")</span>
+            <span>نسبة تسليم الجرعات @Model.DoseCoveragePercent%</span>
+            <span>نسبة تسليم الوجبات @Model.MealCoveragePercent%</span>
+            <span>Fathers Care System</span>
+        </footer>
+    </div>
+}
+
+@code {
+    private DashboardViewModel? Model;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Model = await CareOverview.GetDashboardAsync();
+    }
+}

@@ -1,0 +1,53 @@
+@page "/nutrition"
+@using FathersCare.Application.Abstractions
+@inject ICareOverviewService CareOverview
+
+<PageTitle>إدارة التغذية والمطبخ</PageTitle>
+
+@if (Model is null)
+{
+    <p>جاري تحميل البيانات...</p>
+}
+else
+{
+    <section class="page-title"><div><h1>إدارة التغذية والمطبخ</h1><p>الوجبات والأنظمة والمخزون من قاعدة البيانات</p></div><div class="toolbar"><button class="btn">@DateTime.Today.ToString("dd / MM / yyyy")</button><button class="btn primary">تقرير التغذية اليومي</button></div></section>
+
+    <div class="dashboard-grid">
+        <section class="stats-grid">
+            @foreach (var stat in Model.Stats)
+            {
+                <div class="stat-card @stat.Color"><div class="stat-icon">@stat.Icon</div><div><span>@stat.Title</span><strong>@stat.Value</strong><small>@stat.Caption</small></div></div>
+            }
+        </section>
+
+        <section class="four-col">
+            <div class="panel"><h2>تنبيهات المخزون</h2><table class="data-table"><tbody>@foreach (var row in Model.InventoryAlerts) { <tr><td>@row.Label</td><td><span class="status @row.Status">@row.Value</span></td></tr> }</tbody></table></div>
+            <div class="panel"><h2>الحالات التي تحتاج اهتمام</h2><table class="data-table"><tbody>@foreach (var row in Model.SpecialCases) { <tr><td>@row.Label</td><td><span class="status @row.Status">@row.Value</span></td></tr> }</tbody></table></div>
+            <div class="panel"><h2>مؤشرات التغذية اليوم</h2><div class="donut"><span>@Model.CoveragePercent%</span></div><table class="data-table"><tbody><tr><td>وجبات تم تحضيرها</td><td>@Model.PreparedMeals</td></tr><tr><td>وجبات تم تسليمها</td><td>@Model.DeliveredMeals</td></tr><tr><td>وجبات متأخرة</td><td>@Model.LateMeals</td></tr></tbody></table></div>
+            <div class="panel"><h2>ملاحظات اليوم</h2><p>هذه المؤشرات محسوبة من سجلات توزيع الوجبات ومخزون المطبخ في SQL.</p><button class="btn">إضافة ملاحظة</button></div>
+        </section>
+
+        <section class="three-col">
+            <div class="panel"><h2>جدول الوجبات اليوم</h2><table class="data-table"><thead><tr><th>الوقت</th><th>الوجبة</th><th>التفاصيل</th></tr></thead><tbody>@foreach (var row in Model.MealSchedule) { <tr><td>@row.Time</td><td>@row.Title</td><td>@row.Details</td></tr> }</tbody></table></div>
+            <div class="panel"><h2>الوجبات الخاصة بالنزلاء</h2><table class="data-table"><thead><tr><th>النزيل</th><th>النظام الغذائي</th></tr></thead><tbody>@foreach (var row in Model.SpecialMeals) { <tr><td>@row.Label</td><td>@row.Value</td></tr> }</tbody></table></div>
+            <div class="panel"><h2>المخزون الحالي</h2><table class="data-table"><thead><tr><th>الصنف</th><th>المخزون</th><th>الحد الأدنى</th><th>الحالة</th></tr></thead><tbody>@foreach (var row in Model.Inventory) { <tr><td>@row.Item</td><td>@row.Quantity</td><td>@row.Threshold</td><td><span class="status @row.State">@row.Status</span></td></tr> }</tbody></table></div>
+        </section>
+
+        <section class="three-col">
+            <div class="panel"><h2>معدل استهلاك الأصناف الغذائية</h2><div class="chart-bars"><div class="bar" style="height:55%"></div><div class="bar alt" style="height:38%"></div><div class="bar" style="height:68%"></div><div class="bar alt" style="height:52%"></div><div class="bar" style="height:80%"></div><div class="bar alt" style="height:70%"></div></div></div>
+            <div class="panel"><h2>طلبات خاصة وملاحظات التغذية</h2><table class="data-table"><tbody>@foreach (var row in Model.SpecialCases.Take(3)) { <tr><td><span class="status @row.Status">متابعة</span></td><td>@row.Label - @row.Value</td></tr> }</tbody></table></div>
+            <div class="panel"><h2>إجراءات سريعة</h2><div class="quick-actions"><button class="mini-card">إضافة صنف</button><button class="mini-card">طلب شراء</button><button class="mini-card">استلام صنف</button><button class="mini-card">إدارة الأنظمة</button></div></div>
+        </section>
+
+        <footer class="bottom-bar"><span>نسبة التغطية الغذائية @Model.CoveragePercent%</span><span>الوجبات المسلمة @Model.DeliveredMeals / @Model.PreparedMeals</span><span>تنبيهات المخزون @Model.InventoryAlerts.Count</span></footer>
+    </div>
+}
+
+@code {
+    private NutritionViewModel? Model;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Model = await CareOverview.GetNutritionAsync();
+    }
+}

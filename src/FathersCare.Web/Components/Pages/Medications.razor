@@ -1,0 +1,594 @@
+@page "/medications"
+@page "/medications/{ResidentId:guid}"
+@rendermode InteractiveServer
+@using System.Linq.Expressions
+@using FathersCare.Application.Abstractions
+@using FathersCare.Application.Medications.Validation
+@using Microsoft.AspNetCore.Components.Forms
+@inject IMedicationManagementService MedicationService
+@inject IResidentManagementService ResidentsService
+
+<PageTitle>إدارة الأدوية</PageTitle>
+
+@if (Model is null)
+{
+    <p>جاري تحميل بيانات الأدوية...</p>
+}
+else
+{
+    <div class="medication-page">
+    <section class="page-title medication-title">
+        <div>
+            <h1>إدارة الأدوية والتنفيذ الفعلي</h1>
+            <p>استلام دواء النزيل بالكميات والصلاحية والروشتة، ثم تحويل الخطة إلى تنبيهات جرعات واضحة للتنفيذ اليومي.</p>
+        </div>
+        <div class="toolbar">
+            <a class="btn" href="residents">العودة للنزلاء</a>
+            <button class="btn" type="button" @onclick="Load">تحديث</button>
+            <button class="btn primary" type="button">@DateTime.Today.ToString("dd / MM / yyyy")</button>
+        </div>
+    </section>
+
+    @if (!string.IsNullOrWhiteSpace(Message))
+    {
+        <div class="form-note @(MessageIsError ? "error-note" : string.Empty)">@Message</div>
+    }
+
+    <section class="stats-grid compact residents-kpis medication-kpis">
+        <div class="stat-card red"><div class="stat-icon">!</div><div><span>جرعات متأخرة</span><strong>@Model.LateCount</strong><small>تحتاج إجراء الآن</small></div></div>
+        <div class="stat-card gold"><div class="stat-icon">!</div><div><span>خلال 30 دقيقة</span><strong>@Model.DueNowCount</strong><small>تنبيهات تنفيذ</small></div></div>
+        <div class="stat-card blue"><div class="stat-icon">د</div><div><span>خطط دواء نشطة</span><strong>@Model.Plans.Count</strong><small>مرتبطة بالنزلاء</small></div></div>
+        <div class="stat-card teal"><div class="stat-icon">م</div><div><span>دفعات مستلمة</span><strong>@Model.Batches.Count</strong><small>برصيد وصلاحية</small></div></div>
+        <div class="stat-card red"><div class="stat-icon">!</div><div><span>رصيد منخفض</span><strong>@Model.LowStockCount</strong><small>يتطلب استلام جديد</small></div></div>
+        <div class="stat-card gold"><div class="stat-icon">ص</div><div><span>صلاحية قريبة</span><strong>@Model.ExpiringSoonCount</strong><small>خلال 30 يوم</small></div></div>
+    </section>
+
+    <section class="medication-workspace">
+        <div class="medication-main">
+        <div class="panel medication-panel medication-today">
+            <div class="panel-heading">
+                <div>
+                    <h2>تنبيهات الجرعات اليوم</h2>
+                    <p>كل جرعة لها وقت واضح وحالة تنفيذ، وزر "تم الإعطاء" يخصم تلقائيًا من أقرب رصيد صالح.</p>
+                </div>
+            </div>
+            <div class="table-scroll medication-dose-table">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>الموعد والنزيل</th>
+                        <th>الدواء والجرعة</th>
+                        <th>تعليمات</th>
+                        <th>الحالة</th>
+                        <th>تنفيذ</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var dose in Model.TodayDoses)
+                    {
+                        <tr>
+                            <td><strong>@dose.Time</strong><span class="cell-subtitle">@dose.Resident</span></td>
+                            <td><strong>@dose.Medicine</strong><span class="cell-subtitle">@dose.Dose</span></td>
+                            <td>@dose.Instructions</td>
+                            <td><span class="status @dose.State">@dose.Status</span></td>
+                            <td>
+                                <div class="row-actions">
+                                    <button class="btn primary" type="button" disabled="@(!dose.CanGive)" @onclick="() => GiveDose(dose.Id)">تم</button>
+                                    <button class="btn" type="button" disabled="@(!dose.CanGive)" @onclick="() => MissDose(dose.Id)">فات</button>
+                                    <button class="btn" type="button" disabled="@(!dose.CanGive)" @onclick="() => SkipDose(dose.Id)">تخط</button>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+            </div>
+        </div>
+
+        <div class="panel medication-panel medication-alerts">
+            <h2>تنبيهات تشغيلية</h2>
+            <table class="data-table">
+                <tbody>
+                    @foreach (var alert in Model.Alerts)
+                    {
+                        <tr><td>@alert.Label</td><td><span class="status @alert.Status">@alert.Value</span></td></tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        </div>
+
+        <section class="panel form-panel medication-intake-panel">
+        <div class="panel-heading">
+            <div>
+                <h2>استلام دواء من النزيل / الأسرة</h2>
+                <p>سجل الكمية المستلمة، تاريخ الصلاحية، بيانات الروشتة، والمستلم داخل الدار. بعد الحفظ يتم إنشاء خطة الجرعات والتنبيهات تلقائيًا.</p>
+            </div>
+        </div>
+
+        <EditForm EditContext="ReceiveEditContext" FormName="medication-receive" OnSubmit="SubmitReceiveMedicine">
+            <ValidationSummary class="validation-summary" />
+            <div class="form-grid">
+                <label class="field">
+                    <span>النزيل</span>
+                    <InputSelect class="@SelectClass(() => ReceiveForm.ResidentId)" @bind-Value="ReceiveForm.ResidentId">
+                        <option value="">اختر النزيل</option>
+                        @foreach (var resident in Model.Residents)
+                        {
+                            <option value="@resident.Id">@resident.Name</option>
+                        }
+                    </InputSelect>
+                    <ValidationMessage class="field-validation" For="() => ReceiveForm.ResidentId" />
+                </label>
+                <label class="field"><span>اسم الدواء</span><InputText class="@InputClass(() => ReceiveForm.MedicineName)" @bind-Value="ReceiveForm.MedicineName" /><ValidationMessage class="field-validation" For="() => ReceiveForm.MedicineName" /></label>
+                <label class="field"><span>التركيز</span><InputText class="input" @bind-Value="ReceiveForm.Strength" /></label>
+                <label class="field"><span>الشكل</span><InputText class="@InputClass(() => ReceiveForm.Form)" @bind-Value="ReceiveForm.Form" /><ValidationMessage class="field-validation" For="() => ReceiveForm.Form" /></label>
+                <label class="field"><span>الكمية المستلمة</span><InputNumber class="@InputClass(() => ReceiveForm.QuantityReceived)" @bind-Value="ReceiveForm.QuantityReceived" /><ValidationMessage class="field-validation" For="() => ReceiveForm.QuantityReceived" /></label>
+                <label class="field"><span>تاريخ الاستلام</span><InputDate class="@InputClass(() => ReceiveForm.ReceivedOn)" @bind-Value="ReceiveForm.ReceivedOn" /><ValidationMessage class="field-validation" For="() => ReceiveForm.ReceivedOn" /></label>
+                <label class="field"><span>تاريخ الصلاحية</span><InputDate class="@InputClass(() => ReceiveForm.ExpiresOn)" @bind-Value="ReceiveForm.ExpiresOn" /><ValidationMessage class="field-validation" For="() => ReceiveForm.ExpiresOn" /></label>
+                <label class="field"><span>المُسلِّم</span><InputText class="@InputClass(() => ReceiveForm.ReceivedFrom)" @bind-Value="ReceiveForm.ReceivedFrom" /><ValidationMessage class="field-validation" For="() => ReceiveForm.ReceivedFrom" /></label>
+                <label class="field"><span>المستلم بالدار</span><InputText class="@InputClass(() => ReceiveForm.ReceivedBy)" @bind-Value="ReceiveForm.ReceivedBy" /><ValidationMessage class="field-validation" For="() => ReceiveForm.ReceivedBy" /></label>
+                <label class="field"><span>الطبيب</span><InputText class="@InputClass(() => ReceiveForm.PrescribedBy)" @bind-Value="ReceiveForm.PrescribedBy" /><ValidationMessage class="field-validation" For="() => ReceiveForm.PrescribedBy" /></label>
+                <label class="field"><span>رقم / مرجع الروشتة</span><InputText class="@InputClass(() => ReceiveForm.PrescriptionReference)" @bind-Value="ReceiveForm.PrescriptionReference" /><ValidationMessage class="field-validation" For="() => ReceiveForm.PrescriptionReference" /></label>
+                <label class="field"><span>تاريخ الروشتة</span><InputDate class="@InputClass(() => ReceiveForm.PrescriptionDate)" @bind-Value="ReceiveForm.PrescriptionDate" /><ValidationMessage class="field-validation" For="() => ReceiveForm.PrescriptionDate" /></label>
+                <label class="field"><span>بداية الخطة</span><InputDate class="@InputClass(() => ReceiveForm.StartsOn)" @bind-Value="ReceiveForm.StartsOn" /><ValidationMessage class="field-validation" For="() => ReceiveForm.StartsOn" /></label>
+                <label class="field"><span>نهاية الخطة</span><InputDate class="@InputClass(() => ReceiveForm.EndsOn)" @bind-Value="ReceiveForm.EndsOn" /><ValidationMessage class="field-validation" For="() => ReceiveForm.EndsOn" /></label>
+                <label class="field wide"><span>تعليمات الروشتة</span><InputTextArea class="@TextAreaClass(() => ReceiveForm.Instructions)" @bind-Value="ReceiveForm.Instructions" /><ValidationMessage class="field-validation" For="() => ReceiveForm.Instructions" /></label>
+            </div>
+
+            <div class="panel-heading">
+                <div>
+                    <h2>مواعيد الجرعات</h2>
+                    <p>كل موعد يتحول إلى تنبيه يومي قابل للتنفيذ.</p>
+                </div>
+                <button class="btn" type="button" @onclick="AddDoseLine">إضافة موعد</button>
+            </div>
+
+            <div class="contacts-editor">
+                @for (var i = 0; i < ReceiveForm.Doses.Count; i++)
+                {
+                    var index = i;
+                    <div class="contact-editor-row medication-dose-row">
+                        <label class="field"><span>الوقت</span><InputText class="@InputClass(() => ReceiveForm.Doses[index].Time)" @bind-Value="ReceiveForm.Doses[index].Time" /><ValidationMessage class="field-validation" For="() => ReceiveForm.Doses[index].Time" /></label>
+                        <label class="field"><span>الكمية</span><InputNumber class="@InputClass(() => ReceiveForm.Doses[index].Quantity)" @bind-Value="ReceiveForm.Doses[index].Quantity" /><ValidationMessage class="field-validation" For="() => ReceiveForm.Doses[index].Quantity" /></label>
+                        <label class="field">
+                            <span>التوقيت</span>
+                            <InputSelect class="select" @bind-Value="ReceiveForm.Doses[index].Timing">
+                                <option value="BeforeMeal">قبل الأكل</option>
+                                <option value="WithMeal">مع الأكل</option>
+                                <option value="AfterMeal">بعد الأكل</option>
+                                <option value="AnyTime">أي وقت</option>
+                            </InputSelect>
+                        </label>
+                        <button class="btn danger-link" type="button" @onclick="() => RemoveDoseLine(index)">حذف</button>
+                    </div>
+                }
+            </div>
+
+            <footer class="form-actions">
+                @if (EditingPlanId.HasValue)
+                {
+                    <button class="btn" type="button" @onclick="CancelEdit">إلغاء التعديل</button>
+                }
+                <button class="btn primary" type="submit">@(EditingPlanId.HasValue ? "حفظ تعديل الخطة" : "حفظ الاستلام وإنشاء التنبيهات")</button>
+            </footer>
+        </EditForm>
+        </section>
+    </section>
+
+    <section class="medication-data-grid">
+        <div class="panel medication-panel medication-plans">
+            <h2>خطط العلاج النشطة</h2>
+            <div class="table-scroll medication-plans-table">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>النزيل</th>
+                        <th>الدواء</th>
+                        <th>التعليمات</th>
+                        <th>الجرعات</th>
+                        <th>الرصيد</th>
+                        <th>الفترة</th>
+                        <th>الإجراء</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var plan in Model.Plans)
+                    {
+                        <tr>
+                            <td>@plan.Resident</td>
+                            <td>@plan.Medicine</td>
+                            <td>@plan.Instructions</td>
+                            <td>@plan.Schedule</td>
+                            <td><span class="status @plan.State">@plan.Stock</span></td>
+                            <td>@plan.Period</td>
+                            <td>
+                                <button class="btn" type="button" @onclick="() => StartEditPlan(plan.Id)">تعديل</button>
+                                <button class="btn danger-link" type="button" @onclick="() => DeletePlan(plan.Id)">حذف</button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+            </div>
+        </div>
+
+        <div class="panel medication-panel medication-batches">
+            <h2>دفعات الدواء المستلمة</h2>
+            <div class="table-scroll medication-batches-table">
+            <table class="data-table">
+                <thead><tr><th>النزيل</th><th>الدواء</th><th>المتبقي</th><th>الصلاحية</th><th>المستلم بالدار</th></tr></thead>
+                <tbody>
+                    @foreach (var batch in Model.Batches)
+                    {
+                        <tr><td>@batch.Resident</td><td>@batch.Medicine</td><td><span class="status @batch.State">@batch.QuantityRemaining</span></td><td>@batch.ExpiresOn</td><td>@batch.ReceivedBy</td></tr>
+                    }
+                </tbody>
+            </table>
+            </div>
+        </div>
+    </section>
+    </div>
+}
+
+@code {
+    [Parameter] public Guid? ResidentId { get; set; }
+    private MedicationOperationsViewModel? Model;
+    private ReceiveMedicineForm ReceiveForm { get; set; } = new();
+    private EditContext ReceiveEditContext { get; set; } = default!;
+    private ValidationMessageStore ReceiveValidationMessages { get; set; } = default!;
+    private Guid? EditingPlanId { get; set; }
+    private string? Message;
+    private bool MessageIsError;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        InitializeReceiveEditContext();
+        await Load();
+    }
+
+    private async Task Load()
+    {
+        Model = await MedicationService.GetWorkspaceAsync(ResidentId);
+        ReceiveForm.ResidentId = ResidentId?.ToString() ?? ReceiveForm.ResidentId;
+        EnsureDoseLines();
+    }
+
+    private async Task SubmitReceiveMedicine()
+    {
+        Message = null;
+        MessageIsError = false;
+
+        if (!ValidateReceiveForm())
+        {
+            Message = "يرجى استكمال بيانات استلام الدواء وخطة الجرعات قبل الحفظ.";
+            MessageIsError = true;
+            return;
+        }
+
+        try
+        {
+            if (EditingPlanId.HasValue)
+            {
+                await UpdateMedicinePlan();
+            }
+            else
+            {
+                await ReceiveMedicine();
+            }
+        }
+        catch (Exception ex)
+        {
+            Message = ex.Message;
+            MessageIsError = true;
+        }
+    }
+
+    private async Task ReceiveMedicine()
+    {
+        await MedicationService.ReceiveMedicineAsync(BuildReceiveDto());
+        Message = "تم تسجيل استلام الدواء وإنشاء تنبيهات الجرعات.";
+        MessageIsError = false;
+        ReceiveForm = new ReceiveMedicineForm();
+        InitializeReceiveEditContext();
+        await Load();
+    }
+
+    private async Task UpdateMedicinePlan()
+    {
+        if (!EditingPlanId.HasValue)
+        {
+            return;
+        }
+
+        await MedicationService.UpdatePlanAsync(EditingPlanId.Value, BuildReceiveDto());
+        Message = "تم تحديث خطة العلاج والجرعات بنجاح.";
+        MessageIsError = false;
+        EditingPlanId = null;
+        ReceiveForm = new ReceiveMedicineForm();
+        InitializeReceiveEditContext();
+        await Load();
+    }
+
+    private async Task GiveDose(Guid doseId)
+    {
+        await MedicationService.MarkDoseGivenAsync(doseId, "ممرضة الدار");
+        Message = "تم تسجيل إعطاء الجرعة وخصمها من الرصيد.";
+        await Load();
+    }
+
+    private async Task MissDose(Guid doseId)
+    {
+        await MedicationService.MarkDoseMissedAsync(doseId, "لم يتم إعطاء الجرعة في موعدها");
+        Message = "تم تسجيل الجرعة كفائتة.";
+        await Load();
+    }
+
+    private async Task SkipDose(Guid doseId)
+    {
+        await MedicationService.SkipDoseAsync(doseId, "تم التخطي بتوجيه طبي/تمريضي");
+        Message = "تم تخطي الجرعة.";
+        await Load();
+    }
+
+    private async Task DeletePlan(Guid planId)
+    {
+        await MedicationService.DeletePlanAsync(planId, "تم حذف الخطة لأنها أُدخلت بالخطأ");
+        Message = "تم حذف خطة العلاج من العرض مع الاحتفاظ بسجل الحذف.";
+        await Load();
+    }
+
+    private async Task StartEditPlan(Guid planId)
+    {
+        var edit = await MedicationService.GetPlanForEditAsync(planId);
+        EditingPlanId = edit.Id;
+        ReceiveForm = ToReceiveForm(edit.Medicine);
+        InitializeReceiveEditContext();
+        EnsureDoseLines();
+        Message = "تم تحميل خطة العلاج للتعديل.";
+        MessageIsError = false;
+    }
+
+    private async Task CancelEdit()
+    {
+        EditingPlanId = null;
+        ReceiveForm = new ReceiveMedicineForm();
+        InitializeReceiveEditContext();
+        await Load();
+        Message = "تم إلغاء وضع التعديل.";
+        MessageIsError = false;
+    }
+
+    private void AddDoseLine()
+    {
+        ReceiveForm.Doses.Add(new DoseFormLine { Time = "20:00", Quantity = 1 });
+        ReceiveEditContext.NotifyValidationStateChanged();
+    }
+
+    private void RemoveDoseLine(int index)
+    {
+        if (index >= 0 && index < ReceiveForm.Doses.Count)
+        {
+            ReceiveForm.Doses.RemoveAt(index);
+        }
+
+        EnsureDoseLines();
+        ReceiveEditContext.NotifyValidationStateChanged();
+    }
+
+    private void EnsureDoseLines()
+    {
+        if (ReceiveForm.Doses.Count == 0)
+        {
+            ReceiveForm.Doses.Add(new DoseFormLine { Time = "08:00", Quantity = 1, Timing = "AfterMeal" });
+        }
+    }
+
+    private ReceiveMedicineDto BuildReceiveDto()
+    {
+        return new ReceiveMedicineDto(
+            Guid.TryParse(ReceiveForm.ResidentId, out var residentId) ? residentId : Guid.Empty,
+            ReceiveForm.MedicineName ?? "",
+            ReceiveForm.Strength ?? "",
+            ReceiveForm.Form ?? "",
+            ReceiveForm.QuantityReceived,
+            DateOnly.FromDateTime(ReceiveForm.ReceivedOn),
+            ReceiveForm.ExpiresOn.HasValue ? DateOnly.FromDateTime(ReceiveForm.ExpiresOn.Value) : null,
+            ReceiveForm.ReceivedFrom ?? "",
+            ReceiveForm.ReceivedBy ?? "",
+            ReceiveForm.PrescribedBy ?? "",
+            ReceiveForm.PrescriptionReference ?? "",
+            ReceiveForm.PrescriptionDate.HasValue ? DateOnly.FromDateTime(ReceiveForm.PrescriptionDate.Value) : null,
+            DateOnly.FromDateTime(ReceiveForm.StartsOn),
+            DateOnly.FromDateTime(ReceiveForm.EndsOn),
+            ReceiveForm.Instructions ?? "",
+            ReceiveForm.Doses.Select(dose => new DosePlanInputDto(dose.Time ?? "", dose.Quantity, dose.Timing)).ToList());
+    }
+
+    private static ReceiveMedicineForm ToReceiveForm(ReceiveMedicineDto dto)
+    {
+        return new ReceiveMedicineForm
+        {
+            ResidentId = dto.ResidentId.ToString(),
+            MedicineName = dto.MedicineName,
+            Strength = dto.Strength,
+            Form = dto.Form,
+            QuantityReceived = dto.QuantityReceived,
+            ReceivedOn = dto.ReceivedOn.ToDateTime(TimeOnly.MinValue),
+            ExpiresOn = dto.ExpiresOn?.ToDateTime(TimeOnly.MinValue),
+            ReceivedFrom = dto.ReceivedFrom,
+            ReceivedBy = dto.ReceivedBy,
+            PrescribedBy = dto.PrescribedBy,
+            PrescriptionReference = dto.PrescriptionReference,
+            PrescriptionDate = dto.PrescriptionDate?.ToDateTime(TimeOnly.MinValue),
+            StartsOn = dto.StartsOn.ToDateTime(TimeOnly.MinValue),
+            EndsOn = dto.EndsOn.ToDateTime(TimeOnly.MinValue),
+            Instructions = dto.Instructions,
+            Doses = dto.Doses
+                .Select(dose => new DoseFormLine { Time = dose.Time, Quantity = dose.Quantity, Timing = dose.Timing })
+                .ToList()
+        };
+    }
+
+    private void InitializeReceiveEditContext()
+    {
+        ReceiveEditContext = new EditContext(ReceiveForm);
+        ReceiveValidationMessages = new ValidationMessageStore(ReceiveEditContext);
+        ReceiveEditContext.OnFieldChanged += (_, args) =>
+        {
+            ReceiveValidationMessages.Clear(args.FieldIdentifier);
+            ReceiveEditContext.NotifyValidationStateChanged();
+        };
+    }
+
+    private bool ValidateReceiveForm()
+    {
+        ReceiveValidationMessages.Clear();
+        EnsureDoseLines();
+
+        var issues = ReceiveMedicineBusinessRules.Validate(BuildReceiveDto(), DateOnly.FromDateTime(DateTime.Today));
+        if (issues.Count == 0)
+        {
+            ReceiveEditContext.NotifyValidationStateChanged();
+            return true;
+        }
+
+        foreach (var issue in issues)
+        {
+            AddMedicationIssue(issue);
+        }
+
+        ReceiveEditContext.NotifyValidationStateChanged();
+        return false;
+    }
+
+    private void AddMedicationIssue(MedicationValidationIssue issue)
+    {
+        var message = MedicationValidationMessages.GetValueOrDefault(issue.MessageKey, issue.DefaultMessage);
+
+        switch (issue.Field)
+        {
+            case nameof(ReceiveMedicineDto.ResidentId):
+                AddValidationMessage(() => ReceiveForm.ResidentId, message);
+                break;
+            case nameof(ReceiveMedicineDto.MedicineName):
+                AddValidationMessage(() => ReceiveForm.MedicineName, message);
+                break;
+            case nameof(ReceiveMedicineDto.Form):
+                AddValidationMessage(() => ReceiveForm.Form, message);
+                break;
+            case nameof(ReceiveMedicineDto.QuantityReceived):
+                AddValidationMessage(() => ReceiveForm.QuantityReceived, message);
+                break;
+            case nameof(ReceiveMedicineDto.ReceivedOn):
+                AddValidationMessage(() => ReceiveForm.ReceivedOn, message);
+                break;
+            case nameof(ReceiveMedicineDto.ExpiresOn):
+                AddValidationMessage(() => ReceiveForm.ExpiresOn, message);
+                break;
+            case nameof(ReceiveMedicineDto.ReceivedFrom):
+                AddValidationMessage(() => ReceiveForm.ReceivedFrom, message);
+                break;
+            case nameof(ReceiveMedicineDto.ReceivedBy):
+                AddValidationMessage(() => ReceiveForm.ReceivedBy, message);
+                break;
+            case nameof(ReceiveMedicineDto.PrescribedBy):
+                AddValidationMessage(() => ReceiveForm.PrescribedBy, message);
+                break;
+            case nameof(ReceiveMedicineDto.PrescriptionReference):
+                AddValidationMessage(() => ReceiveForm.PrescriptionReference, message);
+                break;
+            case nameof(ReceiveMedicineDto.PrescriptionDate):
+                AddValidationMessage(() => ReceiveForm.PrescriptionDate, message);
+                break;
+            case nameof(ReceiveMedicineDto.EndsOn):
+                AddValidationMessage(() => ReceiveForm.EndsOn, message);
+                break;
+            case nameof(ReceiveMedicineDto.Instructions):
+                AddValidationMessage(() => ReceiveForm.Instructions, message);
+                break;
+            case "Doses":
+            case "DoseTime":
+                AddValidationMessage(() => ReceiveForm.Doses[0].Time, message);
+                break;
+            case "DoseQuantity":
+                AddValidationMessage(() => ReceiveForm.Doses[0].Quantity, message);
+                break;
+        }
+    }
+
+    private void AddValidationMessage<TField>(Expression<Func<TField>> accessor, string message)
+    {
+        ReceiveValidationMessages.Add(FieldIdentifier.Create(accessor), message);
+    }
+
+    private string InputClass<TField>(Expression<Func<TField>> accessor)
+    {
+        var hasErrors = ReceiveEditContext.GetValidationMessages(FieldIdentifier.Create(accessor)).Any();
+        return hasErrors ? "input input-invalid" : "input";
+    }
+
+    private string SelectClass<TField>(Expression<Func<TField>> accessor)
+    {
+        var hasErrors = ReceiveEditContext.GetValidationMessages(FieldIdentifier.Create(accessor)).Any();
+        return hasErrors ? "select input-invalid" : "select";
+    }
+
+    private string TextAreaClass<TField>(Expression<Func<TField>> accessor)
+    {
+        var hasErrors = ReceiveEditContext.GetValidationMessages(FieldIdentifier.Create(accessor)).Any();
+        return hasErrors ? "input textarea input-invalid" : "input textarea";
+    }
+
+    private static readonly IReadOnlyDictionary<string, string> MedicationValidationMessages = new Dictionary<string, string>
+    {
+        ["ValidationMedicationResidentRequired"] = "اختيار النزيل مطلوب.",
+        ["ValidationMedicineNameRequired"] = "اسم الدواء مطلوب.",
+        ["ValidationMedicineFormRequired"] = "شكل الدواء مطلوب.",
+        ["ValidationMedicineQuantityRequired"] = "الكمية المستلمة يجب أن تكون أكبر من صفر.",
+        ["ValidationMedicineReceivedOnNotFuture"] = "تاريخ الاستلام لا يمكن أن يكون في المستقبل.",
+        ["ValidationMedicineExpiryRequired"] = "تاريخ الصلاحية مطلوب.",
+        ["ValidationMedicineExpiryNotExpired"] = "لا يمكن استلام دواء منتهي الصلاحية.",
+        ["ValidationMedicineExpiryAfterReceipt"] = "تاريخ الصلاحية يجب أن يكون بعد تاريخ الاستلام أو في نفس اليوم.",
+        ["ValidationMedicineReceivedFromRequired"] = "اسم الشخص الذي سلم الدواء مطلوب.",
+        ["ValidationMedicineReceivedByRequired"] = "اسم المستلم داخل الدار مطلوب.",
+        ["ValidationMedicinePrescribedByRequired"] = "اسم الطبيب مطلوب.",
+        ["ValidationMedicinePrescriptionReferenceRequired"] = "رقم أو مرجع الروشتة مطلوب.",
+        ["ValidationMedicinePrescriptionDateRequired"] = "تاريخ الروشتة مطلوب.",
+        ["ValidationMedicinePrescriptionDateNotFuture"] = "تاريخ الروشتة لا يمكن أن يكون في المستقبل.",
+        ["ValidationMedicinePlanDatesRequired"] = "نهاية الخطة يجب أن تكون بعد البداية أو في نفس اليوم.",
+        ["ValidationMedicineInstructionsRequired"] = "تعليمات الروشتة مطلوبة.",
+        ["ValidationMedicineDoseRequired"] = "يجب إضافة موعد جرعة واحد على الأقل.",
+        ["ValidationMedicineDoseTimeRequired"] = "وقت الجرعة يجب أن يكون وقتًا صحيحًا مثل 08:00.",
+        ["ValidationMedicineDoseTimeUnique"] = "لا يمكن تكرار نفس وقت الجرعة.",
+        ["ValidationMedicineDoseQuantityRequired"] = "كمية الجرعة يجب أن تكون أكبر من صفر.",
+        ["ValidationMedicineQuantityCoversPlan"] = "الكمية المستلمة لا تغطي فترة الخطة حسب الجرعات المسجلة."
+    };
+
+    private sealed class ReceiveMedicineForm
+    {
+        public string ResidentId { get; set; } = "";
+        public string? MedicineName { get; set; }
+        public string? Strength { get; set; }
+        public string? Form { get; set; } = "قرص";
+        public decimal QuantityReceived { get; set; } = 31;
+        public DateTime ReceivedOn { get; set; } = DateTime.Today;
+        public DateTime? ExpiresOn { get; set; } = DateTime.Today.AddMonths(6);
+        public string? ReceivedFrom { get; set; }
+        public string? ReceivedBy { get; set; } = "ممرضة الدار";
+        public string? PrescribedBy { get; set; }
+        public string? PrescriptionReference { get; set; }
+        public DateTime? PrescriptionDate { get; set; } = DateTime.Today;
+        public DateTime StartsOn { get; set; } = DateTime.Today;
+        public DateTime EndsOn { get; set; } = DateTime.Today.AddMonths(1).AddDays(-1);
+        public string? Instructions { get; set; }
+        public List<DoseFormLine> Doses { get; set; } = [];
+    }
+
+    private sealed class DoseFormLine
+    {
+        public string Time { get; set; } = "08:00";
+        public decimal Quantity { get; set; } = 1;
+        public string Timing { get; set; } = "AnyTime";
+    }
+}

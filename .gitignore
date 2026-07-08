@@ -1,0 +1,49 @@
+## Build output
+bin/
+obj/
+TestResults/
+*.trx
+*.coverage
+*.coveragexml
+
+## Visual Studio / Rider / VS Code user state
+.vs/
+.vscode/
+*.user
+*.suo
+*.rsuser
+*.userosscache
+*.sln.docstates
+.idea/
+
+## .NET local tooling and generated files
+artifacts/
+*.nupkg
+*.snupkg
+project.lock.json
+
+## Runtime data and local uploads
+src/FathersCare.Web/wwwroot/uploads/
+*.db
+*.db-shm
+*.db-wal
+*.mdf
+*.ldf
+
+## Local secrets
+secrets.json
+*.local.json
+.env
+.env.*
+
+## Node and Playwright scratch output
+node_modules/
+playwright-report/
+blob-report/
+tools/scripts/*.png
+tools/scripts/*.log
+
+## OS files
+Thumbs.db
+Desktop.ini
+.DS_Store

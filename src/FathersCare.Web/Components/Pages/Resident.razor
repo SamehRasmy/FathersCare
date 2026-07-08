@@ -1,0 +1,13 @@
+@page "/resident"
+@inject NavigationManager Navigation
+
+<PageTitle>النزلاء</PageTitle>
+
+<p>جاري فتح موديول النزلاء...</p>
+
+@code {
+    protected override void OnInitialized()
+    {
+        Navigation.NavigateTo("residents", replace: true);
+    }
+}

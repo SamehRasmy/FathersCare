@@ -1,0 +1,770 @@
+@page "/residents/new"
+@page "/residents/{ResidentId:guid}/edit"
+@rendermode InteractiveServer
+@using System.Linq.Expressions
+@using FathersCare.Application.Abstractions
+@using FathersCare.Application.Residents.Validation
+@using FathersCare.Domain.Residents
+@using FathersCare.Web.Resources
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.Extensions.Localization
+@inject IResidentManagementService ResidentsService
+@inject NavigationManager Navigation
+@inject IStringLocalizer<ResidentsResource> R
+@inject IStringLocalizer<SharedResource> S
+
+<PageTitle>@(IsEdit ? R["EditResident"] : R["NewResident"])</PageTitle>
+
+<section class="page-title">
+    <div>
+        <h1>@(IsEdit ? R["EditResident"] : R["NewResident"])</h1>
+        <p>@R["ResidentEditorHint"]</p>
+    </div>
+    <div class="toolbar">
+        <a class="btn" href="residents">@R["BackToList"]</a>
+    </div>
+</section>
+
+@if (Loading)
+{
+    <p>@S["Loading"]</p>
+}
+else
+{
+    @if (!string.IsNullOrWhiteSpace(SaveMessage))
+    {
+        <div class="form-note @(SaveFailed ? "error-note" : string.Empty)">@SaveMessage</div>
+    }
+
+    <EditForm EditContext="EditContext" FormName="resident-upsert" OnSubmit="HandleSubmit">
+        <section class="form-shell">
+            <ValidationSummary class="validation-summary" />
+
+            <div class="tabs resident-tabs">
+                @foreach (var tab in Tabs)
+                {
+                    <button class="@(ActiveTab == tab.Key ? "active" : "")" type="button" @onclick="() => ActiveTab = tab.Key">@tab.Label</button>
+                }
+            </div>
+
+            @if (ActiveTab == "basic")
+            {
+                <div class="panel form-panel">
+                    <div class="photo-editor">
+                        @if (!string.IsNullOrWhiteSpace(Form.PhotoPath))
+                        {
+                            <img class="resident-photo-img" src="@Form.PhotoPath" alt="@Form.FullName" />
+                        }
+                        else
+                        {
+                            <div class="resident-photo">@R["ResidentPhoto"].Value.FirstOrDefault()</div>
+                        }
+                        <div>
+                            <h2>@R["ResidentPhoto"]</h2>
+                            <p>@R["PhotoHint"]</p>
+                            <InputFile OnChange="OnPhotoSelected" accept="image/png,image/jpeg,image/webp" />
+                            @if (!string.IsNullOrWhiteSpace(PhotoMessage))
+                            {
+                                <div class="form-note">@PhotoMessage</div>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="form-grid">
+                        <label class="field"><span>@R["ResidentCode"]</span><InputText class="@InputClass(() => Form.Code)" @bind-Value="Form.Code" /><ValidationMessage class="field-validation" For="() => Form.Code" /></label>
+                        <label class="field wide"><span>@R["FullName"]</span><InputText class="@InputClass(() => Form.FullName)" @bind-Value="Form.FullName" /><ValidationMessage class="field-validation" For="() => Form.FullName" /></label>
+                        <label class="field wide"><span>@R["FullNameArabic"]</span><InputText class="input" @bind-Value="Form.FullNameArabic" /></label>
+                        <label class="field wide"><span>@R["FullNameEnglish"]</span><InputText class="input" @bind-Value="Form.FullNameEnglish" /></label>
+                        <label class="field"><span>@R["BirthDate"]</span><InputDate class="@InputClass(() => Form.BirthDate)" @bind-Value="Form.BirthDate" /><ValidationMessage class="field-validation" For="() => Form.BirthDate" /></label>
+                        <label class="field"><span>@R["BirthPlace"]</span><InputText class="input" @bind-Value="Form.BirthPlace" /></label>
+                        <label class="field">
+                            <span>@R["Gender"]</span>
+                            <InputSelect class="@SelectClass(() => Form.Gender)" @bind-Value="Form.Gender">
+                                <option value="@ResidentGender.Male">@R["GenderMale"]</option>
+                                <option value="@ResidentGender.Female">@R["GenderFemale"]</option>
+                            </InputSelect>
+                            <ValidationMessage class="field-validation" For="() => Form.Gender" />
+                        </label>
+                        <label class="field"><span>@R["Religion"]</span><InputText class="input" @bind-Value="Form.Religion" /></label>
+                        <label class="field"><span>@R["Denomination"]</span><InputText class="input" @bind-Value="Form.Denomination" /></label>
+                        <label class="field"><span>@R["Nationality"]</span><InputText class="input" @bind-Value="Form.Nationality" /></label>
+                        <label class="field"><span>@R["NationalId"]</span><InputText class="@InputClass(() => Form.NationalId)" @bind-Value="Form.NationalId" /><ValidationMessage class="field-validation" For="() => Form.NationalId" /></label>
+                        <label class="field"><span>@R["PassportNumber"]</span><InputText class="@InputClass(() => Form.PassportNumber)" @bind-Value="Form.PassportNumber" /><ValidationMessage class="field-validation" For="() => Form.PassportNumber" /></label>
+                        <label class="field wide"><span>@R["IssueAuthority"]</span><InputText class="input" @bind-Value="Form.IdOrPassportIssueAuthority" /></label>
+                        <label class="field">
+                            <span>@R["MaritalStatus"]</span>
+                            <InputSelect class="select" @bind-Value="Form.MaritalStatus">
+                                <option value="@MaritalStatus.Unknown">@R["MaritalUnknown"]</option>
+                                <option value="@MaritalStatus.Single">@R["MaritalSingle"]</option>
+                                <option value="@MaritalStatus.Married">@R["MaritalMarried"]</option>
+                                <option value="@MaritalStatus.Widowed">@R["MaritalWidowed"]</option>
+                                <option value="@MaritalStatus.Divorced">@R["MaritalDivorced"]</option>
+                            </InputSelect>
+                        </label>
+                        <label class="field"><span>@R["EducationLevel"]</span><InputText class="input" @bind-Value="Form.EducationLevel" /></label>
+                        <label class="field"><span>@R["PreviousJob"]</span><InputText class="input" @bind-Value="Form.PreviousJob" /></label>
+                        <label class="field wide"><span>@R["CurrentAddress"]</span><InputText class="@InputClass(() => Form.CurrentAddress)" @bind-Value="Form.CurrentAddress" /><ValidationMessage class="field-validation" For="() => Form.CurrentAddress" /></label>
+                        <label class="field"><span>@R["PhoneNumber"]</span><InputText class="input" @bind-Value="Form.PhoneNumber" /></label>
+                        <label class="field"><span>@R["MobileNumber"]</span><InputText class="input" @bind-Value="Form.MobilePhone" /></label>
+                    </div>
+                </div>
+            }
+            else if (ActiveTab == "admission")
+            {
+                <div class="panel form-panel">
+                    <div class="form-grid">
+                        <label class="field"><span>@R["AdmissionDate"]</span><InputDate class="@InputClass(() => Form.AdmissionDate)" @bind-Value="Form.AdmissionDate" /><ValidationMessage class="field-validation" For="() => Form.AdmissionDate" /></label>
+                        <label class="field">
+                            <span>@R["AdmissionStatus"]</span>
+                            <InputSelect class="select" @bind-Value="Form.AdmissionStatus">
+                                <option value="@AdmissionStatus.Pending">@R["AdmissionPending"]</option>
+                                <option value="@AdmissionStatus.Admitted">@R["AdmissionAdmitted"]</option>
+                                <option value="@AdmissionStatus.OnHold">@R["AdmissionOnHold"]</option>
+                                <option value="@AdmissionStatus.Closed">@R["AdmissionClosed"]</option>
+                            </InputSelect>
+                        </label>
+                        <label class="field">
+                            <span>@R["ResidencyType"]</span>
+                            <InputSelect class="select" @bind-Value="Form.ResidencyType">
+                                <option value="@ResidencyType.Permanent">@R["ResidencyPermanent"]</option>
+                                <option value="@ResidencyType.Temporary">@R["ResidencyTemporary"]</option>
+                                <option value="@ResidencyType.DayCare">@R["ResidencyDayCare"]</option>
+                                <option value="@ResidencyType.Observation">@R["ResidencyObservation"]</option>
+                            </InputSelect>
+                        </label>
+                        <label class="field">
+                            <span>@R["Status"]</span>
+                            <InputSelect class="select" @bind-Value="Form.Status">
+                                <option value="@ResidentStatus.Active">@R["StatusActive"]</option>
+                                <option value="@ResidentStatus.TemporarilyAway">@R["StatusTemporarilyAway"]</option>
+                                <option value="@ResidentStatus.Discharged">@R["StatusDischarged"]</option>
+                                <option value="@ResidentStatus.Deceased">@R["StatusDeceased"]</option>
+                            </InputSelect>
+                        </label>
+                        <label class="field wide">
+                            <span>@R["Room"]</span>
+                            <InputSelect class="@SelectClass(() => Form.RoomId)" @bind-Value="Form.RoomId">
+                                <option value="">-</option>
+                                @foreach (var room in Rooms)
+                                {
+                                    <option value="@room.Id">@room.Label</option>
+                                }
+                            </InputSelect>
+                            <ValidationMessage class="field-validation" For="() => Form.RoomId" />
+                        </label>
+                        <label class="field"><span>@R["RoomGrade"]</span><InputText class="input" @bind-Value="Form.RoomGrade" /></label>
+                        <label class="field"><span>@R["TreatingDoctorName"]</span><InputText class="input" @bind-Value="Form.TreatingDoctorName" /></label>
+                        <label class="field"><span>@R["CompanionName"]</span><InputText class="input" @bind-Value="Form.CompanionName" /></label>
+                        <label class="field"><span>@R["ResponsiblePersonName"]</span><InputText class="input" @bind-Value="Form.ResponsiblePersonName" /></label>
+                        <label class="field"><span>@R["ResponsiblePersonRelationship"]</span><InputText class="input" @bind-Value="Form.ResponsiblePersonRelationship" /></label>
+                        <label class="field"><span>@R["ResponsiblePersonPhone"]</span><InputText class="input" @bind-Value="Form.ResponsiblePersonPhone" /></label>
+                        <label class="field"><span>@R["ResponsiblePersonMobile"]</span><InputText class="input" @bind-Value="Form.ResponsiblePersonMobile" /></label>
+                        <label class="field wide"><span>@R["ResponsiblePersonAddress"]</span><InputText class="input" @bind-Value="Form.ResponsiblePersonAddress" /></label>
+                        <label class="field wide"><span>@R["ResponsiblePersonWorkAddress"]</span><InputText class="input" @bind-Value="Form.ResponsiblePersonWorkAddress" /></label>
+                        <label class="field"><span>@R["SecondResponsiblePersonName"]</span><InputText class="input" @bind-Value="Form.SecondResponsiblePersonName" /></label>
+                        <label class="field"><span>@R["SecondResponsiblePersonRelationship"]</span><InputText class="input" @bind-Value="Form.SecondResponsiblePersonRelationship" /></label>
+                        <label class="field"><span>@R["SecondResponsiblePersonPhone"]</span><InputText class="input" @bind-Value="Form.SecondResponsiblePersonPhone" /></label>
+                        <label class="field"><span>@R["SecondResponsiblePersonMobile"]</span><InputText class="input" @bind-Value="Form.SecondResponsiblePersonMobile" /></label>
+                        <label class="field wide"><span>@R["SecondResponsiblePersonAddress"]</span><InputText class="input" @bind-Value="Form.SecondResponsiblePersonAddress" /></label>
+                        <label class="field wide"><span>@R["SecondResponsiblePersonWorkAddress"]</span><InputText class="input" @bind-Value="Form.SecondResponsiblePersonWorkAddress" /></label>
+                        <label class="field wide"><span>@R["AdditionalInformation"]</span><InputTextArea class="input textarea" @bind-Value="Form.AdditionalInformation" /></label>
+                    </div>
+                </div>
+            }
+            else if (ActiveTab == "contacts")
+            {
+                <div class="panel form-panel">
+                    <div class="panel-heading">
+                        <div>
+                            <h2>@R["ContactsAndResponsiblePersons"]</h2>
+                            <p>@R["ContactsHint"]</p>
+                        </div>
+                        <button class="btn" type="button" @onclick="AddContact">@R["AddContact"]</button>
+                    </div>
+
+                    <div class="contacts-editor">
+                        @for (var i = 0; i < Form.Contacts.Count; i++)
+                        {
+                            var index = i;
+                            <div class="contact-editor-row resident-contact-rich">
+                                <label class="field"><span>@R["ContactName"]</span><InputText class="@InputClass(() => Form.Contacts[index].FullName)" @bind-Value="Form.Contacts[index].FullName" /><ValidationMessage class="field-validation" For="() => Form.Contacts[index].FullName" /></label>
+                                <label class="field"><span>@R["ContactRelationship"]</span><InputText class="@InputClass(() => Form.Contacts[index].Relationship)" @bind-Value="Form.Contacts[index].Relationship" /><ValidationMessage class="field-validation" For="() => Form.Contacts[index].Relationship" /></label>
+                                <label class="field"><span>@R["ContactJob"]</span><InputText class="input" @bind-Value="Form.Contacts[index].Job" /></label>
+                                <label class="field"><span>@R["ContactAddress"]</span><InputText class="input" @bind-Value="Form.Contacts[index].Address" /></label>
+                                <label class="field"><span>@R["ContactPhone"]</span><InputText class="@InputClass(() => Form.Contacts[index].PhoneNumber)" @bind-Value="Form.Contacts[index].PhoneNumber" /><ValidationMessage class="field-validation" For="() => Form.Contacts[index].PhoneNumber" /></label>
+                                <label class="field"><span>@R["ContactMobile"]</span><InputText class="@InputClass(() => Form.Contacts[index].MobileNumber)" @bind-Value="Form.Contacts[index].MobileNumber" /><ValidationMessage class="field-validation" For="() => Form.Contacts[index].MobileNumber" /></label>
+                                <label class="field wide"><span>@R["ContactNotes"]</span><InputText class="input" @bind-Value="Form.Contacts[index].Notes" /></label>
+                                <div class="field check-field">
+                                    <span>@R["PrimaryContact"]</span>
+                                    <button class="btn primary-mark @(Form.Contacts[index].IsPrimary ? "active" : "")" type="button" @onclick="() => SetPrimaryContact(index)">
+                                        @(Form.Contacts[index].IsPrimary ? S["Yes"] : R["PrimaryContact"])
+                                    </button>
+                                </div>
+                                <label class="field check-field"><span>@R["EmergencyContact"]</span><InputCheckbox class="checkbox" @bind-Value="Form.Contacts[index].IsEmergencyContact" /></label>
+                                <button class="btn danger-link" type="button" @onclick="() => RemoveContact(index)">@S["Delete"]</button>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+            else if (ActiveTab == "medical")
+            {
+                <div class="panel form-panel">
+                    <div class="form-grid">
+                        <label class="field"><span>@R["BloodType"]</span><InputText class="input" @bind-Value="Form.BloodType" /></label>
+                        <label class="field wide"><span>@R["AllergiesSummary"]</span><InputText class="input" @bind-Value="Form.AllergiesSummary" /></label>
+                        <label class="field wide"><span>@R["ChronicConditionsSummary"]</span><InputText class="input" @bind-Value="Form.ChronicConditionsSummary" /></label>
+                        <label class="field wide"><span>@R["AllergyDetails"]</span><InputTextArea class="input textarea" @bind-Value="Form.AllergyDetails" /></label>
+                        <label class="field wide"><span>@R["PreviousSurgeries"]</span><InputTextArea class="input textarea" @bind-Value="Form.PreviousSurgeries" /></label>
+                        <label class="field wide"><span>@R["PreviousInjuriesOrAccidents"]</span><InputTextArea class="input textarea" @bind-Value="Form.PreviousInjuriesOrAccidents" /></label>
+                        <label class="field check-field"><span>@R["MedicalDeclarationConfirmed"]</span><InputCheckbox class="checkbox" @bind-Value="Form.MedicalDeclarationConfirmed" /></label>
+                        <label class="field"><span>@R["MedicalDeclarationConfirmedBy"]</span><InputText class="input" @bind-Value="Form.MedicalDeclarationConfirmedBy" /></label>
+                        <label class="field"><span>@R["MedicalDeclarationDate"]</span><InputDate class="input" @bind-Value="Form.MedicalDeclarationDate" /></label>
+                        <label class="field wide"><span>@R["ResidentNotes"]</span><InputTextArea class="input textarea" @bind-Value="Form.Notes" /></label>
+                    </div>
+
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>@R["Condition"]</th>
+                                <th>@R["HasCondition"]</th>
+                                <th>@R["ConditionNotes"]</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @for (var i = 0; i < Form.MedicalConditions.Count; i++)
+                            {
+                                var index = i;
+                                <tr>
+                                    <td>@ReadableToken(Form.MedicalConditions[index].ConditionName)</td>
+                                    <td><InputCheckbox class="checkbox" @bind-Value="Form.MedicalConditions[index].HasCondition" /></td>
+                                    <td><InputText class="input" @bind-Value="Form.MedicalConditions[index].Notes" /></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else if (ActiveTab == "documents")
+            {
+                <div class="panel form-panel">
+                    @if (!IsEdit)
+                    {
+                        <p>@R["SaveFirstForDocuments"]</p>
+                    }
+                    else
+                    {
+                        <a class="btn primary" href="residents/@ResidentId">@R["UploadResidentDocument"]</a>
+                    }
+                </div>
+            }
+
+            <footer class="form-actions">
+                <button class="btn" type="button" @onclick="Cancel">@S["Cancel"]</button>
+                <button class="btn primary" type="submit">@S["Save"]</button>
+            </footer>
+        </section>
+    </EditForm>
+}
+
+@code {
+    [Parameter] public Guid? ResidentId { get; set; }
+
+    private bool Loading = true;
+    private ResidentFormModel Form { get; set; } = new();
+    private IReadOnlyList<ResidentEditorOptionDto> Rooms { get; set; } = [];
+    private bool IsEdit => ResidentId.HasValue;
+    private string? SaveMessage;
+    private bool SaveFailed;
+    private string ActiveTab = "basic";
+    private IBrowserFile? SelectedPhoto;
+    private string? PhotoMessage;
+    private EditContext EditContext { get; set; } = default!;
+    private ValidationMessageStore ValidationMessages { get; set; } = default!;
+    private HashSet<Guid> LoadedContactIds { get; set; } = [];
+    private HashSet<Guid> LoadedConditionIds { get; set; } = [];
+
+    private IReadOnlyList<(string Key, string Label)> Tabs => new[]
+    {
+        ("basic", R["BasicInformation"].Value),
+        ("admission", R["AdmissionInformation"].Value),
+        ("contacts", R["ContactsAndResponsiblePersons"].Value),
+        ("medical", R["MedicalHistory"].Value),
+        ("documents", R["DocumentsAndAttachments"].Value)
+    };
+
+    protected override async Task OnParametersSetAsync()
+    {
+        Loading = true;
+        var editor = await ResidentsService.GetEditorAsync(ResidentId);
+        Rooms = editor.Rooms;
+        LoadedContactIds = editor.Contacts.Where(contact => contact.Id.HasValue).Select(contact => contact.Id!.Value).ToHashSet();
+        LoadedConditionIds = editor.MedicalConditions.Where(condition => condition.Id.HasValue).Select(condition => condition.Id!.Value).ToHashSet();
+        Form = new ResidentFormModel
+        {
+            Code = editor.Code,
+            FullName = editor.FullName,
+            FullNameArabic = editor.FullNameArabic,
+            FullNameEnglish = editor.FullNameEnglish,
+            MobilePhone = editor.MobilePhone,
+            PhoneNumber = editor.PhoneNumber,
+            BirthDate = editor.BirthDate?.ToDateTime(TimeOnly.MinValue),
+            BirthPlace = editor.BirthPlace,
+            Gender = editor.Gender,
+            Religion = editor.Religion,
+            Denomination = editor.Denomination,
+            Nationality = editor.Nationality,
+            NationalId = editor.NationalId,
+            PassportNumber = editor.PassportNumber,
+            IdOrPassportIssueAuthority = editor.IdOrPassportIssueAuthority,
+            MaritalStatus = editor.MaritalStatus,
+            EducationLevel = editor.EducationLevel,
+            PreviousJob = editor.PreviousJob,
+            CurrentAddress = editor.CurrentAddress,
+            Status = editor.Status,
+            AdmissionStatus = editor.AdmissionStatus,
+            ResidencyType = editor.ResidencyType,
+            RoomId = editor.RoomId?.ToString() ?? string.Empty,
+            AdmissionDate = editor.AdmissionDate?.ToDateTime(TimeOnly.MinValue),
+            RoomGrade = editor.RoomGrade,
+            TreatingDoctorName = editor.TreatingDoctorName,
+            CompanionName = editor.CompanionName,
+            ResponsiblePersonName = editor.ResponsiblePersonName,
+            ResponsiblePersonRelationship = editor.ResponsiblePersonRelationship,
+            ResponsiblePersonAddress = editor.ResponsiblePersonAddress,
+            ResponsiblePersonPhone = editor.ResponsiblePersonPhone,
+            ResponsiblePersonMobile = editor.ResponsiblePersonMobile,
+            ResponsiblePersonWorkAddress = editor.ResponsiblePersonWorkAddress,
+            SecondResponsiblePersonName = editor.SecondResponsiblePersonName,
+            SecondResponsiblePersonRelationship = editor.SecondResponsiblePersonRelationship,
+            SecondResponsiblePersonAddress = editor.SecondResponsiblePersonAddress,
+            SecondResponsiblePersonPhone = editor.SecondResponsiblePersonPhone,
+            SecondResponsiblePersonMobile = editor.SecondResponsiblePersonMobile,
+            SecondResponsiblePersonWorkAddress = editor.SecondResponsiblePersonWorkAddress,
+            AdditionalInformation = editor.AdditionalInformation,
+            BloodType = editor.BloodType,
+            AllergiesSummary = editor.AllergiesSummary,
+            ChronicConditionsSummary = editor.ChronicConditionsSummary,
+            AllergyDetails = editor.AllergyDetails,
+            PreviousSurgeries = editor.PreviousSurgeries,
+            PreviousInjuriesOrAccidents = editor.PreviousInjuriesOrAccidents,
+            MedicalDeclarationConfirmed = editor.MedicalDeclarationConfirmed,
+            MedicalDeclarationConfirmedBy = editor.MedicalDeclarationConfirmedBy,
+            MedicalDeclarationDate = editor.MedicalDeclarationDate?.ToDateTime(TimeOnly.MinValue),
+            Notes = editor.Notes,
+            PhotoPath = editor.PhotoPath,
+            Contacts = editor.Contacts.Select(contact => new ContactFormModel
+            {
+                Id = contact.Id,
+                FullName = contact.FullName,
+                Relationship = contact.Relationship,
+                Job = contact.Job,
+                Address = contact.Address,
+                PhoneNumber = contact.PhoneNumber,
+                MobileNumber = contact.MobileNumber,
+                IsPrimary = contact.IsPrimary,
+                IsEmergencyContact = contact.IsEmergencyContact,
+                Notes = contact.Notes
+            }).ToList(),
+            MedicalConditions = editor.MedicalConditions.Select(condition => new ConditionFormModel
+            {
+                Id = condition.Id,
+                ConditionCode = condition.ConditionCode,
+                ConditionName = condition.ConditionName,
+                HasCondition = condition.HasCondition,
+                Notes = condition.Notes
+            }).ToList()
+        };
+
+        EnsureContactRows();
+        InitializeEditContext();
+        Loading = false;
+    }
+
+    private async Task HandleSubmit()
+    {
+        SaveMessage = null;
+        SaveFailed = false;
+
+        if (!ValidateForm())
+        {
+            SaveMessage = R["ValidationResidentFormIncomplete"];
+            SaveFailed = true;
+            return;
+        }
+
+        await SaveAsync();
+    }
+
+    private async Task SaveAsync()
+    {
+        try
+        {
+            var dto = BuildDto();
+
+            Guid savedId;
+            if (ResidentId.HasValue)
+            {
+                await ResidentsService.UpdateAsync(ResidentId.Value, dto);
+                savedId = ResidentId.Value;
+                SaveMessage = R["SaveSuccessUpdated"];
+                SaveFailed = false;
+            }
+            else
+            {
+                savedId = await ResidentsService.CreateAsync(dto);
+                SaveMessage = R["SaveSuccessCreated"];
+                SaveFailed = false;
+            }
+
+            if (SelectedPhoto is not null)
+            {
+                await using var photoStream = SelectedPhoto.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024);
+                await ResidentsService.UploadPhotoAsync(savedId, photoStream, SelectedPhoto.Name, SelectedPhoto.ContentType);
+            }
+
+            Navigation.NavigateTo($"residents/{savedId}");
+        }
+        catch (Exception ex)
+        {
+            SaveMessage = ex.Message;
+            SaveFailed = true;
+        }
+    }
+
+    private void Cancel() => Navigation.NavigateTo("residents");
+
+    private void OnPhotoSelected(InputFileChangeEventArgs args)
+    {
+        SelectedPhoto = args.File;
+        PhotoMessage = $"{R["PhotoSelected"]}: {SelectedPhoto.Name}";
+    }
+
+    private void AddContact()
+    {
+        Form.Contacts.Add(new ContactFormModel { IsPrimary = Form.Contacts.Count == 0 });
+    }
+
+    private void RemoveContact(int index)
+    {
+        if (index < 0 || index >= Form.Contacts.Count)
+        {
+            return;
+        }
+
+        var wasPrimary = Form.Contacts[index].IsPrimary;
+        Form.Contacts.RemoveAt(index);
+        EnsureContactRows();
+
+        if (wasPrimary && Form.Contacts.Count > 0)
+        {
+            Form.Contacts[0].IsPrimary = true;
+        }
+    }
+
+    private void SetPrimaryContact(int index)
+    {
+        for (var i = 0; i < Form.Contacts.Count; i++)
+        {
+            Form.Contacts[i].IsPrimary = i == index;
+        }
+    }
+
+    private void EnsureContactRows()
+    {
+        if (Form.Contacts.Count == 0)
+        {
+            Form.Contacts.Add(new ContactFormModel { IsPrimary = true });
+        }
+    }
+
+    private ResidentUpsertDto BuildDto()
+    {
+        return new ResidentUpsertDto
+        {
+            Code = Form.Code ?? string.Empty,
+            FullName = Form.FullName ?? string.Empty,
+            FullNameArabic = Form.FullNameArabic ?? string.Empty,
+            FullNameEnglish = Form.FullNameEnglish ?? string.Empty,
+            MobilePhone = Form.MobilePhone ?? string.Empty,
+            PhoneNumber = Form.PhoneNumber ?? string.Empty,
+            BirthDate = Form.BirthDate.HasValue ? DateOnly.FromDateTime(Form.BirthDate.Value) : null,
+            BirthPlace = Form.BirthPlace ?? string.Empty,
+            Gender = Form.Gender ?? ResidentGender.Male.ToString(),
+            Religion = Form.Religion ?? string.Empty,
+            Denomination = Form.Denomination ?? string.Empty,
+            Nationality = Form.Nationality ?? string.Empty,
+            NationalId = Form.NationalId ?? string.Empty,
+            PassportNumber = Form.PassportNumber ?? string.Empty,
+            IdOrPassportIssueAuthority = Form.IdOrPassportIssueAuthority ?? string.Empty,
+            MaritalStatus = Form.MaritalStatus ?? MaritalStatus.Unknown.ToString(),
+            EducationLevel = Form.EducationLevel ?? string.Empty,
+            PreviousJob = Form.PreviousJob ?? string.Empty,
+            CurrentAddress = Form.CurrentAddress ?? string.Empty,
+            Status = Form.Status ?? ResidentStatus.Active.ToString(),
+            AdmissionStatus = Form.AdmissionStatus ?? AdmissionStatus.Pending.ToString(),
+            ResidencyType = Form.ResidencyType ?? ResidencyType.Permanent.ToString(),
+            RoomId = Guid.TryParse(Form.RoomId, out var roomId) ? roomId : null,
+            AdmissionDate = Form.AdmissionDate.HasValue ? DateOnly.FromDateTime(Form.AdmissionDate.Value) : null,
+            RoomGrade = Form.RoomGrade ?? string.Empty,
+            TreatingDoctorName = Form.TreatingDoctorName ?? string.Empty,
+            CompanionName = Form.CompanionName ?? string.Empty,
+            ResponsiblePersonName = Form.ResponsiblePersonName ?? string.Empty,
+            ResponsiblePersonRelationship = Form.ResponsiblePersonRelationship ?? string.Empty,
+            ResponsiblePersonAddress = Form.ResponsiblePersonAddress ?? string.Empty,
+            ResponsiblePersonPhone = Form.ResponsiblePersonPhone ?? string.Empty,
+            ResponsiblePersonMobile = Form.ResponsiblePersonMobile ?? string.Empty,
+            ResponsiblePersonWorkAddress = Form.ResponsiblePersonWorkAddress ?? string.Empty,
+            SecondResponsiblePersonName = Form.SecondResponsiblePersonName ?? string.Empty,
+            SecondResponsiblePersonRelationship = Form.SecondResponsiblePersonRelationship ?? string.Empty,
+            SecondResponsiblePersonAddress = Form.SecondResponsiblePersonAddress ?? string.Empty,
+            SecondResponsiblePersonPhone = Form.SecondResponsiblePersonPhone ?? string.Empty,
+            SecondResponsiblePersonMobile = Form.SecondResponsiblePersonMobile ?? string.Empty,
+            SecondResponsiblePersonWorkAddress = Form.SecondResponsiblePersonWorkAddress ?? string.Empty,
+            AdditionalInformation = Form.AdditionalInformation ?? string.Empty,
+            BloodType = Form.BloodType ?? string.Empty,
+            AllergiesSummary = Form.AllergiesSummary ?? string.Empty,
+            ChronicConditionsSummary = Form.ChronicConditionsSummary ?? string.Empty,
+            AllergyDetails = Form.AllergyDetails ?? string.Empty,
+            PreviousSurgeries = Form.PreviousSurgeries ?? string.Empty,
+            PreviousInjuriesOrAccidents = Form.PreviousInjuriesOrAccidents ?? string.Empty,
+            MedicalDeclarationConfirmed = Form.MedicalDeclarationConfirmed,
+            MedicalDeclarationConfirmedBy = Form.MedicalDeclarationConfirmedBy ?? string.Empty,
+            MedicalDeclarationDate = Form.MedicalDeclarationDate.HasValue ? DateOnly.FromDateTime(Form.MedicalDeclarationDate.Value) : null,
+            Notes = Form.Notes ?? string.Empty,
+            Contacts = Form.Contacts.Select(contact => new ResidentContactEditorDto(
+                contact.Id.HasValue && LoadedContactIds.Contains(contact.Id.Value) ? contact.Id : null,
+                contact.FullName ?? string.Empty,
+                contact.Relationship ?? string.Empty,
+                contact.Job ?? string.Empty,
+                contact.Address ?? string.Empty,
+                contact.PhoneNumber ?? string.Empty,
+                contact.MobileNumber ?? string.Empty,
+                contact.IsPrimary,
+                contact.IsEmergencyContact,
+                contact.Notes ?? string.Empty)).ToList(),
+            MedicalConditions = Form.MedicalConditions.Select(condition => new ResidentMedicalConditionEditorDto(
+                condition.Id.HasValue && LoadedConditionIds.Contains(condition.Id.Value) ? condition.Id : null,
+                condition.ConditionCode,
+                condition.ConditionName,
+                condition.HasCondition,
+                condition.Notes ?? string.Empty)).ToList()
+        };
+    }
+
+    private void InitializeEditContext()
+    {
+        EditContext = new EditContext(Form);
+        ValidationMessages = new ValidationMessageStore(EditContext);
+        EditContext.OnFieldChanged += (_, args) =>
+        {
+            ValidationMessages.Clear(args.FieldIdentifier);
+            EditContext.NotifyValidationStateChanged();
+        };
+    }
+
+    private bool ValidateForm()
+    {
+        ValidationMessages.Clear();
+        EnsureContactRows();
+
+        var issues = ResidentUpsertBusinessRules.Validate(BuildDto());
+        if (issues.Count == 0)
+        {
+            EditContext.NotifyValidationStateChanged();
+            return true;
+        }
+
+        ActiveTab = ResolveTab(issues[0].Field);
+
+        foreach (var issue in issues)
+        {
+            AddIssueMessages(issue);
+        }
+
+        EditContext.NotifyValidationStateChanged();
+        return false;
+    }
+
+    private void AddIssueMessages(ResidentValidationIssue issue)
+    {
+        var message = LocalizeIssue(issue);
+
+        switch (issue.Field)
+        {
+            case nameof(ResidentUpsertDto.Code):
+                AddValidationMessage(() => Form.Code, message);
+                break;
+            case nameof(ResidentUpsertDto.FullName):
+                AddValidationMessage(() => Form.FullName, message);
+                break;
+            case nameof(ResidentUpsertDto.BirthDate):
+                AddValidationMessage(() => Form.BirthDate, message);
+                break;
+            case nameof(ResidentUpsertDto.Gender):
+                AddValidationMessage(() => Form.Gender, message);
+                break;
+            case nameof(ResidentUpsertDto.CurrentAddress):
+                AddValidationMessage(() => Form.CurrentAddress, message);
+                break;
+            case "IdentityDocument":
+                AddValidationMessage(() => Form.NationalId, message);
+                AddValidationMessage(() => Form.PassportNumber, message);
+                break;
+            case nameof(ResidentUpsertDto.AdmissionDate):
+                AddValidationMessage(() => Form.AdmissionDate, message);
+                break;
+            case nameof(ResidentUpsertDto.RoomId):
+                AddValidationMessage(() => Form.RoomId, message);
+                break;
+            case "Contacts":
+            case "PrimaryContactFullName":
+                AddValidationMessage(() => Form.Contacts[PrimaryContactIndex()].FullName, message);
+                break;
+            case "PrimaryContactRelationship":
+                AddValidationMessage(() => Form.Contacts[PrimaryContactIndex()].Relationship, message);
+                break;
+            case "PrimaryContactPhone":
+                AddValidationMessage(() => Form.Contacts[PrimaryContactIndex()].PhoneNumber, message);
+                AddValidationMessage(() => Form.Contacts[PrimaryContactIndex()].MobileNumber, message);
+                break;
+        }
+    }
+
+    private void AddValidationMessage<TField>(Expression<Func<TField>> accessor, string message)
+    {
+        ValidationMessages.Add(FieldIdentifier.Create(accessor), message);
+    }
+
+    private string LocalizeIssue(ResidentValidationIssue issue)
+    {
+        var localized = R[issue.MessageKey];
+        return localized.ResourceNotFound ? issue.DefaultMessage : localized.Value;
+    }
+
+    private int PrimaryContactIndex()
+    {
+        EnsureContactRows();
+        var index = Form.Contacts.FindIndex(contact => contact.IsPrimary);
+        return index >= 0 ? index : 0;
+    }
+
+    private string ResolveTab(string field) => field switch
+    {
+        nameof(ResidentUpsertDto.Code) or
+        nameof(ResidentUpsertDto.FullName) or
+        nameof(ResidentUpsertDto.BirthDate) or
+        nameof(ResidentUpsertDto.Gender) or
+        nameof(ResidentUpsertDto.CurrentAddress) or
+        "IdentityDocument" => "basic",
+        nameof(ResidentUpsertDto.AdmissionDate) or
+        nameof(ResidentUpsertDto.RoomId) => "admission",
+        "Contacts" or
+        "PrimaryContactFullName" or
+        "PrimaryContactRelationship" or
+        "PrimaryContactPhone" => "contacts",
+        _ => ActiveTab
+    };
+
+    private string InputClass<TField>(Expression<Func<TField>> accessor)
+    {
+        var hasErrors = EditContext.GetValidationMessages(FieldIdentifier.Create(accessor)).Any();
+        return hasErrors ? "input input-invalid" : "input";
+    }
+
+    private string SelectClass<TField>(Expression<Func<TField>> accessor)
+    {
+        var hasErrors = EditContext.GetValidationMessages(FieldIdentifier.Create(accessor)).Any();
+        return hasErrors ? "select input-invalid" : "select";
+    }
+
+    private static string ReadableToken(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        return string.Concat(value.Select((ch, index) => index > 0 && char.IsUpper(ch) ? $" {ch}" : ch.ToString()));
+    }
+
+    private sealed class ResidentFormModel
+    {
+        public string? Code { get; set; }
+        public string? FullName { get; set; }
+        public string? FullNameArabic { get; set; }
+        public string? FullNameEnglish { get; set; }
+        public string? MobilePhone { get; set; }
+        public string? PhoneNumber { get; set; }
+        public DateTime? BirthDate { get; set; }
+        public string? BirthPlace { get; set; }
+        public string? Gender { get; set; } = ResidentGender.Male.ToString();
+        public string? Religion { get; set; }
+        public string? Denomination { get; set; }
+        public string? Nationality { get; set; }
+        public string? NationalId { get; set; }
+        public string? PassportNumber { get; set; }
+        public string? IdOrPassportIssueAuthority { get; set; }
+        public string? MaritalStatus { get; set; } = Domain.Residents.MaritalStatus.Unknown.ToString();
+        public string? EducationLevel { get; set; }
+        public string? PreviousJob { get; set; }
+        public string? CurrentAddress { get; set; }
+        public string? Status { get; set; } = ResidentStatus.Active.ToString();
+        public string? AdmissionStatus { get; set; } = Domain.Residents.AdmissionStatus.Pending.ToString();
+        public string? ResidencyType { get; set; } = Domain.Residents.ResidencyType.Permanent.ToString();
+        public string RoomId { get; set; } = string.Empty;
+        public DateTime? AdmissionDate { get; set; }
+        public string? RoomGrade { get; set; }
+        public string? TreatingDoctorName { get; set; }
+        public string? CompanionName { get; set; }
+        public string? ResponsiblePersonName { get; set; }
+        public string? ResponsiblePersonRelationship { get; set; }
+        public string? ResponsiblePersonAddress { get; set; }
+        public string? ResponsiblePersonPhone { get; set; }
+        public string? ResponsiblePersonMobile { get; set; }
+        public string? ResponsiblePersonWorkAddress { get; set; }
+        public string? SecondResponsiblePersonName { get; set; }
+        public string? SecondResponsiblePersonRelationship { get; set; }
+        public string? SecondResponsiblePersonAddress { get; set; }
+        public string? SecondResponsiblePersonPhone { get; set; }
+        public string? SecondResponsiblePersonMobile { get; set; }
+        public string? SecondResponsiblePersonWorkAddress { get; set; }
+        public string? AdditionalInformation { get; set; }
+        public string? BloodType { get; set; }
+        public string? AllergiesSummary { get; set; }
+        public string? ChronicConditionsSummary { get; set; }
+        public string? AllergyDetails { get; set; }
+        public string? PreviousSurgeries { get; set; }
+        public string? PreviousInjuriesOrAccidents { get; set; }
+        public bool MedicalDeclarationConfirmed { get; set; }
+        public string? MedicalDeclarationConfirmedBy { get; set; }
+        public DateTime? MedicalDeclarationDate { get; set; }
+        public string? Notes { get; set; }
+        public string? PhotoPath { get; set; }
+        public List<ContactFormModel> Contacts { get; set; } = [];
+        public List<ConditionFormModel> MedicalConditions { get; set; } = [];
+    }
+
+    private sealed class ContactFormModel
+    {
+        public Guid? Id { get; set; }
+        public string? FullName { get; set; }
+        public string? Relationship { get; set; }
+        public string? Job { get; set; }
+        public string? Address { get; set; }
+        public string? PhoneNumber { get; set; }
+        public string? MobileNumber { get; set; }
+        public bool IsPrimary { get; set; }
+        public bool IsEmergencyContact { get; set; }
+        public string? Notes { get; set; }
+    }
+
+    private sealed class ConditionFormModel
+    {
+        public Guid? Id { get; set; }
+        public string ConditionCode { get; set; } = string.Empty;
+        public string ConditionName { get; set; } = string.Empty;
+        public bool HasCondition { get; set; }
+        public string? Notes { get; set; }
+    }
+}

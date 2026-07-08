@@ -1,0 +1,116 @@
+.brand-panel {
+    text-align: center;
+    padding: 4px 4px 18px;
+}
+
+.crest {
+    width: 104px;
+    height: 104px;
+    margin: 0 auto 10px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    border: 3px solid #fff;
+    outline: 2px solid rgba(255,255,255,.35);
+    background: #fff;
+    overflow: hidden;
+}
+
+.crest img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+}
+
+.brand-ar {
+    font-size: 14px;
+    line-height: 1.7;
+    font-weight: 600;
+}
+
+.brand-en {
+    margin-top: 14px;
+    color: #d59c2b;
+    font-family: "Segoe UI Variable Display", "Segoe UI", Tahoma, Arial, sans-serif;
+    font-size: 29px;
+    font-weight: 650;
+    letter-spacing: 0;
+}
+
+.brand-tagline {
+    margin-top: 6px;
+    font-size: 17px;
+    font-weight: 600;
+}
+
+.side-nav {
+    display: grid;
+    gap: 7px;
+}
+
+.side-nav a {
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 15px;
+    border-radius: 8px;
+    color: #fff;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.side-nav a::after {
+    content: "›";
+    font-size: 23px;
+}
+
+:host-context(html[dir="rtl"]) .side-nav a::after {
+    content: "‹";
+}
+
+.side-nav a.active {
+    background: linear-gradient(180deg, #d39b2d, #bf841c);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.16);
+}
+
+.side-nav a:hover {
+    background: rgba(255,255,255,.1);
+}
+
+.sidebar-card {
+    margin-top: 13px;
+    padding: 13px;
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 10px;
+    background: rgba(255,255,255,.045);
+}
+
+.profile-card {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.profile-card strong,
+.profile-card span,
+.profile-card small {
+    display: block;
+}
+
+.profile-card small {
+    color: #53d56d;
+}
+
+.avatar.large {
+    width: 58px;
+    height: 58px;
+}
+
+.weather-card,
+.time-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}

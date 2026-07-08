@@ -1,0 +1,139 @@
+@page "/residents"
+@rendermode InteractiveServer
+@using FathersCare.Application.Abstractions
+@inject IResidentManagementService ResidentsService
+@inject UiText T
+
+<PageTitle>@T["Residents.Title"]</PageTitle>
+
+@if (Model is null)
+{
+    <p>@T["Common.Loading"]</p>
+}
+else
+{
+    <section class="page-title">
+        <div>
+            <h1>@T["Residents.Title"]</h1>
+            <p>@T["Residents.Subtitle"]</p>
+        </div>
+        <div class="toolbar">
+            <a class="btn primary" href="residents/new">@T["Residents.Add"]</a>
+            <button class="btn" type="button" @onclick="Load">@T["Common.Refresh"]</button>
+        </div>
+    </section>
+
+    <section class="stats-grid compact residents-kpis">
+        <div class="stat-card blue"><div class="stat-icon">R</div><div><span>@T["Residents.Total"]</span><strong>@Model.TotalResidents</strong><small>@T["Residents.TotalCaption"]</small></div></div>
+        <div class="stat-card teal"><div class="stat-icon">A</div><div><span>@T["Residents.Active"]</span><strong>@Model.ActiveResidents</strong><small>@T["Residents.ActiveCaption"]</small></div></div>
+        <div class="stat-card gold"><div class="stat-icon">B</div><div><span>@T["Residents.AvailableBeds"]</span><strong>@Model.AvailableBeds</strong><small>@T["Residents.AvailableBedsCaption"]</small></div></div>
+        <div class="stat-card red"><div class="stat-icon">!</div><div><span>@T["Residents.FullRooms"]</span><strong>@Model.RoomsNeedingAttention</strong><small>@T["Residents.FullRoomsCaption"]</small></div></div>
+    </section>
+
+    <section class="residents-workspace">
+        <div class="panel residents-main">
+            <div class="panel-heading">
+                <div>
+                    <h2>@T["Residents.List"]</h2>
+                    <p>@T["Residents.ListHint"]</p>
+                </div>
+                <div class="toolbar">
+                    <input class="input" placeholder="@T["Residents.SearchPlaceholder"]" @bind="SearchText" />
+                    <select class="select" @bind="SelectedStatus">
+                        <option value="">@T["Residents.AllStatuses"]</option>
+                        <option value="Active">@T["Status.Active"]</option>
+                        <option value="TemporarilyAway">@T["Status.TemporarilyAway"]</option>
+                        <option value="Discharged">@T["Status.Discharged"]</option>
+                        <option value="Deceased">@T["Status.Deceased"]</option>
+                    </select>
+                    <button class="btn primary" type="button" @onclick="Load">@T["Common.Search"]</button>
+                </div>
+            </div>
+
+            <table class="data-table resident-table">
+                <thead>
+                    <tr>
+                        <th>@T["Residents.Resident"]</th>
+                        <th>@T["Residents.Mobile"]</th>
+                        <th>@T["Residents.Age"]</th>
+                        <th>@T["Residents.Status"]</th>
+                        <th>@T["Residents.Room"]</th>
+                        <th>@T["Residents.BloodType"]</th>
+                        <th>@T["Residents.PrimaryContact"]</th>
+                        <th>@T["Residents.Medications"]</th>
+                        <th>@T["Common.Actions"]</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var resident in Model.Residents)
+                    {
+                        <tr>
+                            <td>
+                                <div class="identity-cell">
+                                    @if (!string.IsNullOrWhiteSpace(resident.PhotoPath))
+                                    {
+                                        <img class="resident-avatar-img" src="@resident.PhotoPath" alt="@resident.FullName" />
+                                    }
+                                    else
+                                    {
+                                        <div class="avatar">@resident.FullName.FirstOrDefault()</div>
+                                    }
+                                    <div><strong>@resident.FullName</strong><span>@resident.Code</span></div>
+                                </div>
+                            </td>
+                            <td>@resident.MobilePhone</td>
+                            <td>@resident.Age</td>
+                            <td><span class="status @resident.StatusState">@resident.Status</span></td>
+                            <td>@resident.Room</td>
+                            <td>@resident.BloodType</td>
+                            <td>@resident.PrimaryContact</td>
+                            <td>@resident.DailyMedicationCount</td>
+                            <td>
+                                <div class="row-actions">
+                                    <a class="btn" href="residents/@resident.Id">@T["Common.Open"]</a>
+                                    <a class="btn" href="residents/@resident.Id/edit">@T["Common.Edit"]</a>
+                                    <a class="btn primary" href="@MedicationNavigationHelper.BuildRoute(resident.Id)">الأدوية</a>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <aside class="panel room-panel">
+            <div class="panel-heading compact-heading">
+                <div>
+                    <h2>@T["Rooms.Occupancy"]</h2>
+                    <p>@T["Rooms.OccupancyHint"]</p>
+                </div>
+            </div>
+            <div class="room-board">
+                @foreach (var room in Model.Rooms)
+                {
+                    <div class="room-summary @room.State">
+                        <strong>@room.Number</strong>
+                        <span>@room.Floor</span>
+                        <small>@room.Occupied / @room.Capacity</small>
+                    </div>
+                }
+            </div>
+        </aside>
+    </section>
+}
+
+@code {
+    private ResidentsWorkspaceViewModel? Model;
+    private string? SearchText;
+    private string? SelectedStatus;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Load();
+    }
+
+    private async Task Load()
+    {
+        Model = await ResidentsService.GetWorkspaceAsync(SearchText, SelectedStatus);
+    }
+}

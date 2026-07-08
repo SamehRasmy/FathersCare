@@ -1,0 +1,555 @@
+@page "/rooms"
+@rendermode InteractiveServer
+@using System.ComponentModel.DataAnnotations
+@using FathersCare.Application.Abstractions
+@inject IRoomManagementService RoomService
+
+<PageTitle>إدارة الغرف والأدوار والصيانة</PageTitle>
+
+@if (Model is null)
+{
+    <p>جاري تحميل بيانات الغرف...</p>
+}
+else
+{
+    <div class="rooms-page">
+        <section class="page-title rooms-title">
+            <div>
+                <h1>إدارة الغرف والأدوار والصيانة</h1>
+                <p>خريطة تشغيلية للغرف، السعة، النزلاء الحاليين، وطلبات الصيانة المفتوحة.</p>
+            </div>
+            <div class="toolbar">
+                <a class="btn" href="residents">النزلاء</a>
+                <button class="btn" type="button" @onclick="Load">تحديث</button>
+                <button class="btn primary" type="button">@DateTime.Today.ToString("dd / MM / yyyy")</button>
+            </div>
+        </section>
+
+        @if (!string.IsNullOrWhiteSpace(Message))
+        {
+            <div class="form-note @(MessageIsError ? "error-note" : string.Empty)">@Message</div>
+        }
+
+        <section class="stats-grid compact rooms-kpis">
+            <div class="stat-card blue"><div class="stat-icon">F</div><div><span>الأدوار</span><strong>@Model.TotalFloors</strong><small>مستويات تشغيل</small></div></div>
+            <div class="stat-card teal"><div class="stat-icon">R</div><div><span>الغرف</span><strong>@Model.TotalRooms</strong><small>غرف قابلة للتسكين</small></div></div>
+            <div class="stat-card gold"><div class="stat-icon">B</div><div><span>الأسرة المتاحة</span><strong>@Model.AvailableBeds</strong><small>@Model.OccupiedBeds من @Model.TotalBeds مشغول</small></div></div>
+            <div class="stat-card red"><div class="stat-icon">!</div><div><span>غرف مكتملة</span><strong>@Model.FullRooms</strong><small>لا تستقبل نزلاء جدد</small></div></div>
+            <div class="stat-card gold"><div class="stat-icon">M</div><div><span>صيانة مفتوحة</span><strong>@Model.OpenMaintenanceRequests</strong><small>تحتاج متابعة</small></div></div>
+            <div class="stat-card red"><div class="stat-icon">!</div><div><span>صيانة عالية</span><strong>@Model.UrgentMaintenanceRequests</strong><small>أولوية تنفيذ</small></div></div>
+        </section>
+
+        <section class="rooms-workspace">
+            <div class="rooms-main">
+                <div class="rooms-filterbar">
+                    <div>
+                        <strong>خريطة الإشغال</strong>
+                        <span>كل غرفة مرتبطة بالنزلاء الحاليين وحالة الصيانة.</span>
+                    </div>
+                    <select class="select" @bind="SelectedFloorId" @bind:after="Load">
+                        <option value="">كل الأدوار</option>
+                        @foreach (var floor in Model.Floors)
+                        {
+                            <option value="@floor.Id">@floor.Name</option>
+                        }
+                    </select>
+                </div>
+
+                @if (Model.FloorSections.Count == 0)
+                {
+                    <div class="rooms-empty">لا توجد غرف مسجلة لهذا الاختيار.</div>
+                }
+                else
+                {
+                    @foreach (var floor in Model.FloorSections)
+                    {
+                        <section class="floor-section">
+                            <div class="floor-heading">
+                                <div>
+                                    <h2>@floor.Name</h2>
+                                    <p>@floor.Occupied من @floor.Capacity سرير مشغول</p>
+                                </div>
+                                <span class="floor-badge">@floor.Rooms.Count غرفة</span>
+                            </div>
+
+                            <div class="room-card-grid">
+                                @foreach (var room in floor.Rooms)
+                                {
+                                    <article class="care-room-card @room.State">
+                                        <div class="room-card-top">
+                                            <div>
+                                                <span>غرفة</span>
+                                                <strong>@room.Number</strong>
+                                            </div>
+                                            <span class="status @room.State">@RoomStatusText(room)</span>
+                                        </div>
+
+                                        <div class="room-meter" style="--room-fill:@RoomFill(room)%">
+                                            <span></span>
+                                        </div>
+
+                                        <div class="room-card-meta">
+                                            <span>@room.OccupancyText مشغول</span>
+                                            <span>@room.AvailableBeds سرير متاح</span>
+                                        </div>
+
+                                        <div class="room-residents">
+                                            @if (room.Residents.Count == 0)
+                                            {
+                                                <span class="room-empty">لا يوجد نزيل</span>
+                                            }
+                                            else
+                                            {
+                                                @foreach (var resident in room.Residents)
+                                                {
+                                                    <a class="room-resident" href="residents/@resident.Id">
+                                                        @if (!string.IsNullOrWhiteSpace(resident.PhotoPath))
+                                                        {
+                                                            <img src="@resident.PhotoPath" alt="@resident.Name" />
+                                                        }
+                                                        else
+                                                        {
+                                                            <span>@resident.Name.FirstOrDefault()</span>
+                                                        }
+                                                        <strong>@resident.Name</strong>
+                                                    </a>
+                                                }
+                                            }
+                                        </div>
+
+                                        <div class="room-maintenance-state @room.MaintenanceState">
+                                            @MaintenanceStateText(room.MaintenanceState)
+                                        </div>
+
+                                        <div class="room-card-actions">
+                                            <button class="btn" type="button" @onclick="() => SelectRoomForManagement(room)">إدارة</button>
+                                        </div>
+                                    </article>
+                                }
+                            </div>
+                        </section>
+                    }
+                }
+            </div>
+
+            <aside class="rooms-actions">
+                <section class="panel room-form-panel">
+                    <div class="panel-heading compact-heading">
+                        <h2>إضافة دور</h2>
+                        <p>استخدم رقم الدور للترتيب ومنع التكرار.</p>
+                    </div>
+                    <label class="field"><span>اسم الدور</span><input class="input" required @bind="NewFloor.Name" /></label>
+                    <label class="field"><span>رقم الدور</span><input class="input" type="number" min="1" required @bind="NewFloor.Number" /></label>
+                    <button class="btn primary block" type="button" @onclick="CreateFloorAsync">حفظ الدور</button>
+                </section>
+
+                <section class="panel room-form-panel">
+                    <div class="panel-heading compact-heading">
+                        <h2>إضافة غرفة</h2>
+                        <p>السعة مطلوبة لحساب الأسرة المتاحة بدقة.</p>
+                    </div>
+                    <label class="field">
+                        <span>الدور</span>
+                        <select class="select" required @bind="NewRoom.FloorId">
+                            <option value="@Guid.Empty">اختر الدور</option>
+                            @foreach (var floor in Model.Floors)
+                            {
+                                <option value="@floor.Id">@floor.Name</option>
+                            }
+                        </select>
+                    </label>
+                    <label class="field"><span>رقم الغرفة</span><input class="input" required @bind="NewRoom.Number" /></label>
+                    <label class="field"><span>السعة</span><input class="input" type="number" min="1" max="8" required @bind="NewRoom.Capacity" /></label>
+                    <button class="btn primary block" type="button" @onclick="CreateRoomAsync">حفظ الغرفة</button>
+                </section>
+
+                <section class="panel room-form-panel">
+                    <div class="panel-heading compact-heading">
+                        <h2>إدارة غرفة</h2>
+                        <p>تعديل عدد الأسرة أو حذف الغرفة إذا كانت خالية تماما.</p>
+                    </div>
+                    <label class="field">
+                        <span>الغرفة</span>
+                        <select class="select" required @bind="ManagedRoom.RoomId" @bind:after="SyncManagedRoomCapacity">
+                            <option value="@Guid.Empty">اختر الغرفة</option>
+                            @foreach (var room in Model.RoomOptions)
+                            {
+                                <option value="@room.Id">@room.Label</option>
+                            }
+                        </select>
+                    </label>
+                    <label class="field"><span>عدد الأسرة</span><input class="input" type="number" min="1" max="8" required @bind="ManagedRoom.Capacity" /></label>
+                    <div class="room-management-actions">
+                        <button class="btn primary" type="button" @onclick="UpdateRoomCapacityAsync">تعديل السعة</button>
+                        <button class="btn danger" type="button" disabled="@(!CanDeleteManagedRoom)" @onclick="DeleteRoomAsync">حذف الغرفة</button>
+                    </div>
+                    <small class="room-rule-note">الحذف يتم Soft Delete، ومتاح فقط لو الغرفة بدون نزلاء وبدون صيانة مفتوحة.</small>
+                </section>
+
+                <section class="panel room-form-panel">
+                    <div class="panel-heading compact-heading">
+                        <h2>تسكين نزيل</h2>
+                        <p>ينهي السجل القديم ويفتح سجل إشغال جديد تلقائيا.</p>
+                    </div>
+                    <label class="field">
+                        <span>النزيل</span>
+                        <select class="select" required @bind="Assignment.ResidentId">
+                            <option value="@Guid.Empty">اختر النزيل</option>
+                            @foreach (var resident in Model.ResidentOptions)
+                            {
+                                <option value="@resident.Id">@resident.Name</option>
+                            }
+                        </select>
+                    </label>
+                    <label class="field">
+                        <span>الغرفة</span>
+                        <select class="select" required @bind="Assignment.RoomId">
+                            <option value="@Guid.Empty">اختر الغرفة</option>
+                            @foreach (var room in Model.RoomOptions)
+                            {
+                                <option value="@room.Id">@room.Label</option>
+                            }
+                        </select>
+                    </label>
+                    <button class="btn primary block" type="button" @onclick="AssignResidentAsync">تأكيد التسكين</button>
+                </section>
+            </aside>
+        </section>
+
+        <section class="rooms-maintenance-layout">
+            <div class="panel room-form-panel">
+                <div class="panel-heading compact-heading">
+                    <h2>طلب صيانة جديد</h2>
+                    <p>سجل البلاغ واربطه بغرفة ونزيل عند الحاجة.</p>
+                </div>
+                <div class="room-maintenance-form">
+                    <label class="field">
+                        <span>الغرفة</span>
+                        <select class="select" required @bind="Maintenance.RoomId">
+                            <option value="@Guid.Empty">اختر الغرفة</option>
+                            @foreach (var room in Model.RoomOptions)
+                            {
+                                <option value="@room.Id">@room.Label</option>
+                            }
+                        </select>
+                    </label>
+                    <label class="field">
+                        <span>النزيل المرتبط</span>
+                        <select class="select" @bind="MaintenanceResidentValue">
+                            <option value="">بدون نزيل محدد</option>
+                            @foreach (var resident in Model.ResidentOptions)
+                            {
+                                <option value="@resident.Id">@resident.Name</option>
+                            }
+                        </select>
+                    </label>
+                    <label class="field"><span>عنوان البلاغ</span><input class="input" required @bind="Maintenance.Title" /></label>
+                    <label class="field">
+                        <span>الأولوية</span>
+                        <select class="select" required @bind="Maintenance.Priority">
+                            <option value="Low">منخفضة</option>
+                            <option value="Normal">متوسطة</option>
+                            <option value="High">عالية</option>
+                            <option value="Urgent">عاجلة</option>
+                        </select>
+                    </label>
+                    <label class="field"><span>المبلغ</span><input class="input" required @bind="Maintenance.ReportedBy" /></label>
+                    <label class="field"><span>المسؤول عن التنفيذ</span><input class="input" @bind="Maintenance.AssignedTo" /></label>
+                    <label class="field wide"><span>الوصف</span><textarea class="input textarea" required @bind="Maintenance.Description"></textarea></label>
+                    <button class="btn primary block" type="button" @onclick="CreateMaintenanceAsync">حفظ طلب الصيانة</button>
+                </div>
+            </div>
+
+            <div class="panel maintenance-board">
+                <div class="panel-heading">
+                    <div>
+                        <h2>طلبات الصيانة المفتوحة</h2>
+                        <p>إغلاق الطلب يتم بعد التنفيذ الفعلي فقط.</p>
+                    </div>
+                </div>
+                <div class="table-scroll rooms-maintenance-table">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>الغرفة</th>
+                                <th>النزيل</th>
+                                <th>البلاغ</th>
+                                <th>الأولوية</th>
+                                <th>المسؤول</th>
+                                <th>التاريخ</th>
+                                <th>تنفيذ</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var request in Model.MaintenanceRequests)
+                            {
+                                <tr>
+                                    <td><strong>@request.Room</strong><span class="cell-subtitle">@request.Floor</span></td>
+                                    <td>@request.Resident</td>
+                                    <td><strong>@request.Title</strong><span class="cell-subtitle">@request.Description</span></td>
+                                    <td><span class="status @request.PriorityState">@PriorityText(request.Priority)</span></td>
+                                    <td>@request.AssignedTo</td>
+                                    <td>@request.ReportedAt</td>
+                                    <td><button class="btn primary" type="button" @onclick="() => CompleteMaintenanceAsync(request.Id)">تم التنفيذ</button></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </div>
+}
+
+@code {
+    private RoomsWorkspaceViewModel? Model;
+    private string? Message;
+    private bool MessageIsError;
+    private Guid? SelectedFloorId;
+    private FloorForm NewFloor { get; set; } = new();
+    private RoomForm NewRoom { get; set; } = new();
+    private ManagedRoomForm ManagedRoom { get; set; } = new();
+    private AssignmentForm Assignment { get; set; } = new();
+    private MaintenanceForm Maintenance { get; set; } = new() { Priority = "Normal", ReportedBy = "إدارة الدار" };
+
+    private string MaintenanceResidentValue
+    {
+        get => Maintenance.ResidentId?.ToString() ?? string.Empty;
+        set => Maintenance.ResidentId = Guid.TryParse(value, out var id) ? id : null;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Load();
+    }
+
+    private async Task Load()
+    {
+        var selectedManagedRoomId = ManagedRoom.RoomId;
+        Model = await RoomService.GetWorkspaceAsync(SelectedFloorId);
+        NewRoom.FloorId = Model.Floors.FirstOrDefault()?.Id ?? Guid.Empty;
+        Assignment.RoomId = Model.RoomOptions.FirstOrDefault()?.Id ?? Guid.Empty;
+        Assignment.ResidentId = Model.ResidentOptions.FirstOrDefault()?.Id ?? Guid.Empty;
+        Maintenance.RoomId = Model.RoomOptions.FirstOrDefault()?.Id ?? Guid.Empty;
+        ManagedRoom.RoomId = Model.RoomOptions.Any(room => room.Id == selectedManagedRoomId)
+            ? selectedManagedRoomId
+            : Model.RoomOptions.FirstOrDefault()?.Id ?? Guid.Empty;
+        SyncManagedRoomCapacity();
+    }
+
+    private async Task CreateFloorAsync()
+    {
+        await ExecuteAsync(async () =>
+        {
+            await RoomService.CreateFloorAsync(new RoomFloorCreateDto(NewFloor.Name, NewFloor.Number));
+            NewFloor = new();
+            Message = "تم حفظ الدور بنجاح.";
+        });
+    }
+
+    private async Task CreateRoomAsync()
+    {
+        await ExecuteAsync(async () =>
+        {
+            await RoomService.CreateRoomAsync(new RoomCreateDto(NewRoom.FloorId, NewRoom.Number, NewRoom.Capacity));
+            NewRoom = new RoomForm { Capacity = 1 };
+            Message = "تم حفظ الغرفة بنجاح.";
+        });
+    }
+
+    private async Task UpdateRoomCapacityAsync()
+    {
+        await ExecuteAsync(async () =>
+        {
+            await RoomService.UpdateRoomCapacityAsync(new RoomCapacityUpdateDto(ManagedRoom.RoomId, ManagedRoom.Capacity));
+            Message = "تم تعديل عدد الأسرة داخل الغرفة.";
+        });
+    }
+
+    private async Task DeleteRoomAsync()
+    {
+        await ExecuteAsync(async () =>
+        {
+            await RoomService.DeleteRoomAsync(ManagedRoom.RoomId);
+            ManagedRoom = new();
+            Message = "تم حذف الغرفة من التشغيل مع الاحتفاظ بسجلها.";
+        });
+    }
+
+    private async Task AssignResidentAsync()
+    {
+        await ExecuteAsync(async () =>
+        {
+            await RoomService.AssignResidentToRoomAsync(new RoomAssignmentDto(Assignment.ResidentId, Assignment.RoomId));
+            Message = "تم تسكين النزيل في الغرفة.";
+        });
+    }
+
+    private async Task CreateMaintenanceAsync()
+    {
+        await ExecuteAsync(async () =>
+        {
+            await RoomService.CreateMaintenanceRequestAsync(new RoomMaintenanceCreateDto(
+                Maintenance.RoomId,
+                Maintenance.ResidentId,
+                Maintenance.Title,
+                Maintenance.Description,
+                Maintenance.Priority,
+                Maintenance.ReportedBy,
+                Maintenance.AssignedTo));
+            Maintenance = new MaintenanceForm { Priority = "Normal", ReportedBy = "إدارة الدار" };
+            Message = "تم تسجيل طلب الصيانة.";
+        });
+    }
+
+    private async Task CompleteMaintenanceAsync(Guid requestId)
+    {
+        await ExecuteAsync(async () =>
+        {
+            await RoomService.CompleteMaintenanceRequestAsync(requestId, "system");
+            Message = "تم إغلاق طلب الصيانة.";
+        });
+    }
+
+    private async Task ExecuteAsync(Func<Task> action)
+    {
+        try
+        {
+            MessageIsError = false;
+            await action();
+            await Load();
+        }
+        catch (ValidationException ex)
+        {
+            MessageIsError = true;
+            Message = TranslateError(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            MessageIsError = true;
+            Message = TranslateError(ex.Message);
+        }
+    }
+
+    private static int RoomFill(RoomCardDto room) =>
+        room.Capacity <= 0 ? 0 : Math.Clamp((int)Math.Round(room.Occupied * 100m / room.Capacity), 0, 100);
+
+    private bool CanDeleteManagedRoom
+    {
+        get
+        {
+            var room = FindRoom(ManagedRoom.RoomId);
+            return room is not null && room.Occupied == 0 && room.MaintenanceState == "none";
+        }
+    }
+
+    private void SelectRoomForManagement(RoomCardDto room)
+    {
+        ManagedRoom.RoomId = room.Id;
+        ManagedRoom.Capacity = room.Capacity;
+    }
+
+    private void SyncManagedRoomCapacity()
+    {
+        var room = FindRoom(ManagedRoom.RoomId);
+        ManagedRoom.Capacity = room?.Capacity ?? Math.Max(1, ManagedRoom.Capacity);
+    }
+
+    private RoomCardDto? FindRoom(Guid roomId) =>
+        Model?.FloorSections.SelectMany(floor => floor.Rooms).FirstOrDefault(room => room.Id == roomId);
+
+    private static string RoomStatusText(RoomCardDto room)
+    {
+        if (room.MaintenanceState == "urgent")
+        {
+            return "صيانة عاجلة";
+        }
+
+        if (room.MaintenanceState == "open")
+        {
+            return "تحت المتابعة";
+        }
+
+        if (room.Occupied >= room.Capacity)
+        {
+            return "مكتملة";
+        }
+
+        return room.Occupied == 0 ? "متاحة" : "مشغولة جزئيا";
+    }
+
+    private static string MaintenanceStateText(string state) => state switch
+    {
+        "urgent" => "صيانة عاجلة",
+        "open" => "طلب صيانة مفتوح",
+        _ => "لا توجد صيانة مفتوحة"
+    };
+
+    private static string PriorityText(string priority) => priority switch
+    {
+        "Low" => "منخفضة",
+        "High" => "عالية",
+        "Urgent" => "عاجلة",
+        _ => "متوسطة"
+    };
+
+    private static string TranslateError(string message) => message switch
+    {
+        "Floor name is required." => "اسم الدور مطلوب.",
+        "Floor number must be greater than zero." => "رقم الدور يجب أن يكون أكبر من صفر.",
+        "Floor number already exists." => "رقم الدور مسجل من قبل.",
+        "Floor is required." => "اختيار الدور مطلوب.",
+        "Room number is required." => "رقم الغرفة مطلوب.",
+        "Room capacity must be greater than zero." => "سعة الغرفة يجب أن تكون أكبر من صفر.",
+        "Room capacity cannot be less than current residents." => "عدد الأسرة لا يمكن أن يكون أقل من عدد النزلاء الموجودين في الغرفة.",
+        "Floor was not found." => "الدور غير موجود.",
+        "Room number already exists on this floor." => "رقم الغرفة موجود بالفعل في هذا الدور.",
+        "Resident is required." => "اختيار النزيل مطلوب.",
+        "Room is required." => "اختيار الغرفة مطلوب.",
+        "Resident was not found." => "النزيل غير موجود.",
+        "Room was not found." => "الغرفة غير موجودة.",
+        "Room has no available beds." => "الغرفة لا يوجد بها سرير متاح.",
+        "Room cannot be deleted while residents are assigned." => "لا يمكن حذف الغرفة طالما يوجد بها نزلاء.",
+        "Room cannot be deleted while maintenance requests are open." => "لا يمكن حذف الغرفة قبل إغلاق طلبات الصيانة المفتوحة.",
+        "Maintenance title is required." => "عنوان بلاغ الصيانة مطلوب.",
+        "Maintenance description is required." => "وصف بلاغ الصيانة مطلوب.",
+        "Reporter name is required." => "اسم المبلغ مطلوب.",
+        _ => message
+    };
+
+    private sealed class FloorForm
+    {
+        public string Name { get; set; } = string.Empty;
+        public int Number { get; set; } = 1;
+    }
+
+    private sealed class RoomForm
+    {
+        public Guid FloorId { get; set; }
+        public string Number { get; set; } = string.Empty;
+        public int Capacity { get; set; } = 1;
+    }
+
+    private sealed class ManagedRoomForm
+    {
+        public Guid RoomId { get; set; }
+        public int Capacity { get; set; } = 1;
+    }
+
+    private sealed class AssignmentForm
+    {
+        public Guid ResidentId { get; set; }
+        public Guid RoomId { get; set; }
+    }
+
+    private sealed class MaintenanceForm
+    {
+        public Guid RoomId { get; set; }
+        public Guid? ResidentId { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public string Priority { get; set; } = "Normal";
+        public string ReportedBy { get; set; } = string.Empty;
+        public string AssignedTo { get; set; } = string.Empty;
+    }
+}

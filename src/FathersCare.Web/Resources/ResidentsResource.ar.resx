@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <data name="ResidentProfile" xml:space="preserve"><value>ملف النزيل</value></data>
+  <data name="ResidentProfileHint" xml:space="preserve"><value>ملف إلكتروني متكامل للنزيل وفق بيانات الالتحاق والرعاية والمتابعة الطبية.</value></data>
+  <data name="BasicInformation" xml:space="preserve"><value>البيانات الأساسية</value></data>
+  <data name="AdmissionInformation" xml:space="preserve"><value>بيانات الالتحاق</value></data>
+  <data name="ContactsAndResponsiblePersons" xml:space="preserve"><value>جهات الاتصال والمسؤولون</value></data>
+  <data name="FamilyMembers" xml:space="preserve"><value>أفراد الأسرة</value></data>
+  <data name="MedicalHistory" xml:space="preserve"><value>التاريخ المرضي</value></data>
+  <data name="MedicationsAndSchedules" xml:space="preserve"><value>الأدوية ومواعيدها</value></data>
+  <data name="DocumentsAndAttachments" xml:space="preserve"><value>المستندات والمرفقات</value></data>
+  <data name="NotesAndTimeline" xml:space="preserve"><value>الملاحظات والسجل الزمني</value></data>
+  <data name="NewResident" xml:space="preserve"><value>إضافة نزيل</value></data>
+  <data name="EditResident" xml:space="preserve"><value>تعديل بيانات النزيل</value></data>
+  <data name="ResidentEditorHint" xml:space="preserve"><value>سجل جميع بيانات النزيل وملف الالتحاق وجهات الاتصال والتاريخ المرضي والمستندات المطلوبة.</value></data>
+  <data name="BackToList" xml:space="preserve"><value>العودة إلى قائمة النزلاء</value></data>
+  <data name="OpenMedicationWorkspace" xml:space="preserve"><value>مساحة عمل الأدوية</value></data>
+  <data name="ResidentCode" xml:space="preserve"><value>كود النزيل</value></data>
+  <data name="FullName" xml:space="preserve"><value>الاسم الكامل</value></data>
+  <data name="FullNameArabic" xml:space="preserve"><value>الاسم الكامل بالعربية</value></data>
+  <data name="FullNameEnglish" xml:space="preserve"><value>الاسم الكامل بالإنجليزية</value></data>
+  <data name="BirthDate" xml:space="preserve"><value>تاريخ الميلاد</value></data>
+  <data name="BirthPlace" xml:space="preserve"><value>محل الميلاد</value></data>
+  <data name="Age" xml:space="preserve"><value>السن</value></data>
+  <data name="Gender" xml:space="preserve"><value>النوع</value></data>
+  <data name="Religion" xml:space="preserve"><value>الديانة</value></data>
+  <data name="Denomination" xml:space="preserve"><value>الطائفة</value></data>
+  <data name="Nationality" xml:space="preserve"><value>الجنسية</value></data>
+  <data name="NationalId" xml:space="preserve"><value>الرقم القومي</value></data>
+  <data name="PassportNumber" xml:space="preserve"><value>رقم جواز السفر</value></data>
+  <data name="IssueAuthority" xml:space="preserve"><value>جهة إصدار البطاقة أو جواز السفر</value></data>
+  <data name="MaritalStatus" xml:space="preserve"><value>الحالة الاجتماعية</value></data>
+  <data name="EducationLevel" xml:space="preserve"><value>المستوى التعليمي</value></data>
+  <data name="PreviousJob" xml:space="preserve"><value>العمل السابق</value></data>
+  <data name="CurrentAddress" xml:space="preserve"><value>العنوان الحالي</value></data>
+  <data name="PhoneNumber" xml:space="preserve"><value>رقم الهاتف</value></data>
+  <data name="MobileNumber" xml:space="preserve"><value>رقم المحمول</value></data>
+  <data name="ResidentPhoto" xml:space="preserve"><value>صورة النزيل</value></data>
+  <data name="PhotoHint" xml:space="preserve"><value>ارفع صورة شخصية واضحة للنزيل لاستخدامها في التعريف والمتابعة اليومية.</value></data>
+  <data name="PhotoSelected" xml:space="preserve"><value>الصورة المختارة</value></data>
+  <data name="AdmissionDate" xml:space="preserve"><value>تاريخ الالتحاق</value></data>
+  <data name="AdmissionStatus" xml:space="preserve"><value>حالة الالتحاق</value></data>
+  <data name="ResidencyType" xml:space="preserve"><value>نوع الإقامة</value></data>
+  <data name="Room" xml:space="preserve"><value>الغرفة</value></data>
+  <data name="Status" xml:space="preserve"><value>الحالة</value></data>
+  <data name="RoomGrade" xml:space="preserve"><value>درجة الغرفة</value></data>
+  <data name="TreatingDoctorName" xml:space="preserve"><value>الطبيب المعالج</value></data>
+  <data name="CompanionName" xml:space="preserve"><value>اسم المرافق</value></data>
+  <data name="ResponsiblePersonName" xml:space="preserve"><value>المسؤول الأول عن النزيل</value></data>
+  <data name="ResponsiblePersonRelationship" xml:space="preserve"><value>صلة القرابة</value></data>
+  <data name="ResponsiblePersonAddress" xml:space="preserve"><value>العنوان</value></data>
+  <data name="ResponsiblePersonPhone" xml:space="preserve"><value>الهاتف</value></data>
+  <data name="ResponsiblePersonMobile" xml:space="preserve"><value>المحمول</value></data>
+  <data name="ResponsiblePersonWorkAddress" xml:space="preserve"><value>عنوان العمل</value></data>
+  <data name="SecondResponsiblePersonName" xml:space="preserve"><value>المسؤول الثاني عن النزيل</value></data>
+  <data name="SecondResponsiblePersonRelationship" xml:space="preserve"><value>صلة قرابة المسؤول الثاني</value></data>
+  <data name="SecondResponsiblePersonAddress" xml:space="preserve"><value>عنوان المسؤول الثاني</value></data>
+  <data name="SecondResponsiblePersonPhone" xml:space="preserve"><value>هاتف المسؤول الثاني</value></data>
+  <data name="SecondResponsiblePersonMobile" xml:space="preserve"><value>محمول المسؤول الثاني</value></data>
+  <data name="SecondResponsiblePersonWorkAddress" xml:space="preserve"><value>عنوان عمل المسؤول الثاني</value></data>
+  <data name="AdditionalInformation" xml:space="preserve"><value>بيانات إضافية</value></data>
+  <data name="ContactsHint" xml:space="preserve"><value>أضف أكثر من جهة اتصال أسرية أو للطوارئ، مع تحديد جهة الاتصال الأساسية والطوارئ.</value></data>
+  <data name="AddContact" xml:space="preserve"><value>إضافة جهة اتصال</value></data>
+  <data name="ContactName" xml:space="preserve"><value>الاسم</value></data>
+  <data name="ContactRelationship" xml:space="preserve"><value>صلة القرابة</value></data>
+  <data name="ContactJob" xml:space="preserve"><value>الوظيفة</value></data>
+  <data name="ContactAddress" xml:space="preserve"><value>العنوان</value></data>
+  <data name="ContactPhone" xml:space="preserve"><value>رقم الهاتف</value></data>
+  <data name="ContactMobile" xml:space="preserve"><value>رقم المحمول</value></data>
+  <data name="PrimaryContact" xml:space="preserve"><value>جهة الاتصال الأساسية</value></data>
+  <data name="EmergencyContact" xml:space="preserve"><value>جهة اتصال للطوارئ</value></data>
+  <data name="ContactNotes" xml:space="preserve"><value>ملاحظات</value></data>
+  <data name="BloodType" xml:space="preserve"><value>فصيلة الدم</value></data>
+  <data name="Dose" xml:space="preserve"><value>الجرعة</value></data>
+  <data name="Time" xml:space="preserve"><value>الوقت</value></data>
+  <data name="AllergiesSummary" xml:space="preserve"><value>ملخص الحساسية</value></data>
+  <data name="ChronicConditionsSummary" xml:space="preserve"><value>ملخص الأمراض المزمنة</value></data>
+  <data name="AllergyDetails" xml:space="preserve"><value>تفاصيل الحساسية من الأدوية</value></data>
+  <data name="PreviousSurgeries" xml:space="preserve"><value>العمليات السابقة</value></data>
+  <data name="PreviousInjuriesOrAccidents" xml:space="preserve"><value>الإصابات أو الحوادث السابقة</value></data>
+  <data name="MedicalDeclarationConfirmed" xml:space="preserve"><value>تم تأكيد الإقرار الطبي</value></data>
+  <data name="MedicalDeclarationConfirmedBy" xml:space="preserve"><value>تم التأكيد بواسطة</value></data>
+  <data name="MedicalDeclarationDate" xml:space="preserve"><value>تاريخ التأكيد</value></data>
+  <data name="Condition" xml:space="preserve"><value>الحالة المرضية</value></data>
+  <data name="HasCondition" xml:space="preserve"><value>موجود</value></data>
+  <data name="ConditionNotes" xml:space="preserve"><value>ملاحظات الحالة</value></data>
+  <data name="StatusActive" xml:space="preserve"><value>مقيم</value></data>
+  <data name="StatusTemporarilyAway" xml:space="preserve"><value>خارج الدار مؤقتاً</value></data>
+  <data name="StatusDischarged" xml:space="preserve"><value>غادر الدار</value></data>
+  <data name="StatusDeceased" xml:space="preserve"><value>منتقل</value></data>
+  <data name="AdmissionPending" xml:space="preserve"><value>قيد المراجعة</value></data>
+  <data name="AdmissionAdmitted" xml:space="preserve"><value>ملتحق</value></data>
+  <data name="AdmissionOnHold" xml:space="preserve"><value>معلق</value></data>
+  <data name="AdmissionClosed" xml:space="preserve"><value>مغلق</value></data>
+  <data name="ResidencyPermanent" xml:space="preserve"><value>إقامة دائمة</value></data>
+  <data name="ResidencyTemporary" xml:space="preserve"><value>إقامة مؤقتة</value></data>
+  <data name="ResidencyDayCare" xml:space="preserve"><value>رعاية نهارية</value></data>
+  <data name="ResidencyObservation" xml:space="preserve"><value>ملاحظة</value></data>
+  <data name="GenderMale" xml:space="preserve"><value>ذكر</value></data>
+  <data name="GenderFemale" xml:space="preserve"><value>أنثى</value></data>
+  <data name="MaritalUnknown" xml:space="preserve"><value>غير محدد</value></data>
+  <data name="MaritalSingle" xml:space="preserve"><value>أعزب</value></data>
+  <data name="MaritalMarried" xml:space="preserve"><value>متزوج</value></data>
+  <data name="MaritalWidowed" xml:space="preserve"><value>أرمل</value></data>
+  <data name="MaritalDivorced" xml:space="preserve"><value>مطلق</value></data>
+  <data name="DocumentType" xml:space="preserve"><value>نوع المستند</value></data>
+  <data name="DocumentTitle" xml:space="preserve"><value>عنوان المستند</value></data>
+  <data name="FileName" xml:space="preserve"><value>اسم الملف</value></data>
+  <data name="FileSize" xml:space="preserve"><value>حجم الملف</value></data>
+  <data name="UploadedAt" xml:space="preserve"><value>تاريخ الرفع</value></data>
+  <data name="ExpiryDate" xml:space="preserve"><value>تاريخ الانتهاء</value></data>
+  <data name="DocumentNotes" xml:space="preserve"><value>ملاحظات المستند</value></data>
+  <data name="UploadResidentDocument" xml:space="preserve"><value>رفع مستند للنزيل</value></data>
+  <data name="ChooseFile" xml:space="preserve"><value>اختيار ملف</value></data>
+  <data name="MissingRequiredDocuments" xml:space="preserve"><value>المستندات المطلوبة غير المكتملة</value></data>
+  <data name="NoDocuments" xml:space="preserve"><value>لا توجد مستندات مرفوعة حتى الآن.</value></data>
+  <data name="Confidential" xml:space="preserve"><value>سري</value></data>
+  <data name="SaveFirstForDocuments" xml:space="preserve"><value>احفظ بيانات النزيل أولاً ثم ابدأ إدارة المستندات والمرفقات.</value></data>
+  <data name="Timeline" xml:space="preserve"><value>السجل الزمني</value></data>
+  <data name="ResidentNotes" xml:space="preserve"><value>ملاحظات النزيل</value></data>
+  <data name="SaveSuccessCreated" xml:space="preserve"><value>تم إنشاء ملف النزيل بنجاح.</value></data>
+  <data name="SaveSuccessUpdated" xml:space="preserve"><value>تم تحديث ملف النزيل بنجاح.</value></data>
+  <data name="ValidationResidentFormIncomplete" xml:space="preserve"><value>يرجى استكمال البيانات الإلزامية قبل الحفظ.</value></data>
+  <data name="ValidationResidentCodeRequired" xml:space="preserve"><value>كود النزيل مطلوب.</value></data>
+  <data name="ValidationFullNameRequired" xml:space="preserve"><value>الاسم الكامل مطلوب.</value></data>
+  <data name="ValidationBirthDateRequired" xml:space="preserve"><value>تاريخ الميلاد مطلوب.</value></data>
+  <data name="ValidationGenderRequired" xml:space="preserve"><value>النوع مطلوب.</value></data>
+  <data name="ValidationAdmissionDateRequired" xml:space="preserve"><value>تاريخ الالتحاق مطلوب.</value></data>
+  <data name="ValidationCurrentAddressRequired" xml:space="preserve"><value>العنوان الحالي مطلوب.</value></data>
+  <data name="ValidationIdentityDocumentRequired" xml:space="preserve"><value>يجب إدخال الرقم القومي أو رقم جواز السفر.</value></data>
+  <data name="ValidationPrimaryContactRequired" xml:space="preserve"><value>يجب تسجيل جهة اتصال أسرية أو للطوارئ على الأقل.</value></data>
+  <data name="ValidationPrimaryContactNameRequired" xml:space="preserve"><value>اسم جهة الاتصال الأساسية مطلوب.</value></data>
+  <data name="ValidationPrimaryContactRelationshipRequired" xml:space="preserve"><value>صلة قرابة جهة الاتصال الأساسية مطلوبة.</value></data>
+  <data name="ValidationPrimaryContactPhoneRequired" xml:space="preserve"><value>رقم هاتف أو محمول جهة الاتصال الأساسية مطلوب.</value></data>
+  <data name="ValidationRoomRequiredForActiveAdmission" xml:space="preserve"><value>تحديد الغرفة مطلوب للنزيل المقيم والملتحق فعليًا.</value></data>
+</root>

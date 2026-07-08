@@ -1,0 +1,23 @@
+@using FathersCare.Web.Localization
+@inject UiText T
+@inject NavigationManager Navigation
+
+<a class="language-switcher" href="@SwitchHref" title="@SwitchTitle">
+    <span class="language-option @(T.IsArabic ? "active" : "")">عربي</span>
+    <span class="language-divider"></span>
+    <span class="language-option @(!T.IsArabic ? "active" : "")">EN</span>
+</a>
+
+@code {
+    private string SwitchTitle => T.IsArabic ? "Switch to English" : "التبديل إلى العربية";
+
+    private string SwitchHref
+    {
+        get
+        {
+            var currentPath = Navigation.ToBaseRelativePath(Navigation.Uri);
+            var redirectUri = "/" + currentPath;
+            return $"/culture/set?culture={Uri.EscapeDataString(T.OtherCultureName)}&redirectUri={Uri.EscapeDataString(redirectUri)}";
+        }
+    }
+}

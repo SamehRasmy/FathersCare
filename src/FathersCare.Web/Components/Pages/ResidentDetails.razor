@@ -1,0 +1,469 @@
+@page "/residents/{ResidentId:guid}"
+@rendermode InteractiveServer
+@using FathersCare.Application.Abstractions
+@using FathersCare.Web.Resources
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.Extensions.Localization
+@inject IResidentManagementService ResidentsService
+@inject IStringLocalizer<ResidentsResource> R
+@inject IStringLocalizer<SharedResource> S
+
+<PageTitle>@R["ResidentProfile"]</PageTitle>
+
+@if (Model is null)
+{
+    <p>@S["Loading"]</p>
+}
+else
+{
+    <section class="page-title">
+        <div>
+            <h1>@R["ResidentProfile"]</h1>
+            <p>@R["ResidentProfileHint"]</p>
+        </div>
+        <div class="toolbar">
+            <a class="btn" href="residents">@R["BackToList"]</a>
+            <a class="btn" href="@MedicationNavigationHelper.BuildRoute(Model.Id)">@R["OpenMedicationWorkspace"]</a>
+            <a class="btn primary" href="residents/@Model.Id/edit">@S["Edit"]</a>
+        </div>
+    </section>
+
+    @if (!string.IsNullOrWhiteSpace(Message))
+    {
+        <div class="form-note">@Message</div>
+    }
+
+    <section class="panel resident-hero resident-detail-hero">
+        @if (!string.IsNullOrWhiteSpace(Model.PhotoPath))
+        {
+            <img class="resident-photo-img" src="@Model.PhotoPath" alt="@Model.FullName" />
+        }
+        else
+        {
+            <div class="resident-photo">@Model.FullName.FirstOrDefault()</div>
+        }
+        <div>
+            <h1>@Model.FullName</h1>
+            <span class="status @Model.StatusState">@LocalizeStatus(Model.Status)</span>
+            <p>@Model.Room</p>
+            <p>@R["ResidentCode"]: @Model.Code</p>
+            <p>@R["MobileNumber"]: @ValueOrDash(Model.MobilePhone)</p>
+        </div>
+        <table class="data-table">
+            <tbody>
+                <tr><td>@R["BirthDate"]</td><td>@ValueOrDash(Model.BirthDate)</td><td>@R["Age"]</td><td>@ValueOrDash(Model.Age)</td></tr>
+                <tr><td>@R["BloodType"]</td><td>@ValueOrDash(Model.BloodType)</td><td>@R["AdmissionDate"]</td><td>@ValueOrDash(Model.AdmissionDate)</td></tr>
+                <tr><td>@R["TreatingDoctorName"]</td><td>@ValueOrDash(Model.TreatingDoctorName)</td><td>@R["RoomGrade"]</td><td>@ValueOrDash(Model.RoomGrade)</td></tr>
+            </tbody>
+        </table>
+    </section>
+
+    <div class="tabs resident-tabs">
+        @foreach (var tab in Tabs)
+        {
+            <button class="@(ActiveTab == tab.Key ? "active" : "")" type="button" @onclick="() => ActiveTab = tab.Key">@tab.Label</button>
+        }
+    </div>
+
+    @if (ActiveTab == "basic")
+    {
+        <section class="panel">
+            <div class="detail-grid">
+                @RenderPair(R["FullName"], Model.FullName)
+                @RenderPair(R["FullNameArabic"], Model.FullNameArabic)
+                @RenderPair(R["FullNameEnglish"], Model.FullNameEnglish)
+                @RenderPair(R["BirthDate"], Model.BirthDate)
+                @RenderPair(R["BirthPlace"], Model.BirthPlace)
+                @RenderPair(R["Gender"], LocalizeGender(Model.Gender))
+                @RenderPair(R["Religion"], Model.Religion)
+                @RenderPair(R["Denomination"], Model.Denomination)
+                @RenderPair(R["Nationality"], Model.Nationality)
+                @RenderPair(R["NationalId"], Model.NationalId)
+                @RenderPair(R["PassportNumber"], Model.PassportNumber)
+                @RenderPair(R["MaritalStatus"], LocalizeMaritalStatus(Model.MaritalStatus))
+                @RenderPair(R["EducationLevel"], Model.EducationLevel)
+                @RenderPair(R["PreviousJob"], Model.PreviousJob)
+                @RenderPair(R["CurrentAddress"], Model.CurrentAddress)
+                @RenderPair(R["PhoneNumber"], Model.PhoneNumber)
+                @RenderPair(R["MobileNumber"], Model.MobilePhone)
+            </div>
+        </section>
+    }
+    else if (ActiveTab == "admission")
+    {
+        <section class="panel">
+            <div class="detail-grid">
+                @RenderPair(R["AdmissionDate"], Model.AdmissionDate)
+                @RenderPair(R["AdmissionStatus"], LocalizeAdmissionStatus(Model.AdmissionStatus))
+                @RenderPair(R["ResidencyType"], LocalizeResidencyType(Model.ResidencyType))
+                @RenderPair(R["Room"], Model.Room)
+                @RenderPair(R["RoomGrade"], Model.RoomGrade)
+                @RenderPair(R["TreatingDoctorName"], Model.TreatingDoctorName)
+                @RenderPair(R["CompanionName"], Model.CompanionName)
+                @RenderPair(R["AdditionalInformation"], Model.AdditionalInformation)
+                @RenderPair(R["ResponsiblePersonName"], Model.Contacts.FirstOrDefault(item => item.IsPrimary)?.FullName ?? string.Empty)
+                @RenderPair(R["SecondResponsiblePersonName"], Model.Contacts.Skip(1).FirstOrDefault()?.FullName ?? string.Empty)
+            </div>
+        </section>
+    }
+    else if (ActiveTab == "contacts")
+    {
+        <section class="panel">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>@R["ContactName"]</th>
+                        <th>@R["ContactRelationship"]</th>
+                        <th>@R["ContactJob"]</th>
+                        <th>@R["ContactPhone"]</th>
+                        <th>@R["ContactMobile"]</th>
+                        <th>@R["PrimaryContact"]</th>
+                        <th>@R["EmergencyContact"]</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var contact in Model.Contacts)
+                    {
+                        <tr>
+                            <td>@contact.FullName</td>
+                            <td>@ValueOrDash(contact.Relationship)</td>
+                            <td>@ValueOrDash(contact.Job)</td>
+                            <td>@ValueOrDash(contact.PhoneNumber)</td>
+                            <td>@ValueOrDash(contact.MobileNumber)</td>
+                            <td>@(contact.IsPrimary ? S["Yes"] : "-")</td>
+                            <td>@(contact.IsEmergencyContact ? S["Yes"] : "-")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </section>
+    }
+    else if (ActiveTab == "medical")
+    {
+        <section class="panel">
+            <div class="detail-grid">
+                @RenderPair(R["BloodType"], Model.BloodType)
+                @RenderPair(R["AllergiesSummary"], Model.AllergiesSummary)
+                @RenderPair(R["ChronicConditionsSummary"], Model.ChronicConditionsSummary)
+                @RenderPair(R["AllergyDetails"], Model.AllergyDetails)
+                @RenderPair(R["PreviousSurgeries"], Model.PreviousSurgeries)
+                @RenderPair(R["PreviousInjuriesOrAccidents"], Model.PreviousInjuriesOrAccidents)
+                @RenderPair(R["MedicalDeclarationConfirmed"], Model.MedicalDeclarationConfirmed ? S["Yes"] : S["No"])
+                @RenderPair(R["MedicalDeclarationConfirmedBy"], Model.MedicalDeclarationConfirmedBy)
+                @RenderPair(R["MedicalDeclarationDate"], Model.MedicalDeclarationDate)
+            </div>
+
+            <table class="data-table" style="margin-top: 1rem;">
+                <thead>
+                    <tr>
+                        <th>@R["Condition"]</th>
+                        <th>@R["HasCondition"]</th>
+                        <th>@R["ConditionNotes"]</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var condition in Model.MedicalConditions)
+                    {
+                        <tr>
+                            <td>@ReadableToken(condition.ConditionName)</td>
+                            <td>@(condition.HasCondition ? S["Yes"] : S["No"])</td>
+                            <td>@ValueOrDash(condition.Notes)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </section>
+    }
+    else if (ActiveTab == "medications")
+    {
+        <section class="panel">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>@R["MedicationsAndSchedules"]</th>
+                        <th>@R["Dose"]</th>
+                        <th>@R["Time"]</th>
+                        <th>@S["Status"]</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var medicine in Model.Medications)
+                    {
+                        <tr>
+                            <td>@medicine.Medicine</td>
+                            <td>@medicine.Dose</td>
+                            <td>@medicine.Time</td>
+                            <td><span class="status @medicine.State">@medicine.Status</span></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </section>
+    }
+    else if (ActiveTab == "documents")
+    {
+        <section class="panel form-panel">
+            <div class="panel-heading">
+                <div>
+                    <h2>@R["DocumentsAndAttachments"]</h2>
+                    <p>@R["UploadResidentDocument"]</p>
+                </div>
+            </div>
+
+            @if (Model.MissingRequiredDocuments.Count > 0)
+            {
+                <div class="form-note">
+                    <strong>@R["MissingRequiredDocuments"]:</strong>
+                    @string.Join(", ", Model.MissingRequiredDocuments.Select(ReadableToken))
+                </div>
+            }
+
+            <EditForm Model="DocumentForm" FormName="resident-document-upload" OnValidSubmit="UploadDocument">
+                <div class="form-grid">
+                    <label class="field">
+                        <span>@R["DocumentType"]</span>
+                        <InputSelect class="select" @bind-Value="DocumentForm.DocumentType">
+                            @foreach (var type in Enum.GetNames<FathersCare.Domain.Residents.ResidentDocumentType>())
+                            {
+                                <option value="@type">@ReadableToken(type)</option>
+                            }
+                        </InputSelect>
+                    </label>
+                    <label class="field"><span>@R["DocumentTitle"]</span><InputText class="input" @bind-Value="DocumentForm.Title" /></label>
+                    <label class="field"><span>@R["ExpiryDate"]</span><InputDate class="input" @bind-Value="DocumentForm.ExpiryDate" /></label>
+                    <label class="field"><span>@R["Confidential"]</span><InputCheckbox class="checkbox" @bind-Value="DocumentForm.IsConfidential" /></label>
+                    <label class="field wide"><span>@R["DocumentNotes"]</span><InputTextArea class="input textarea" @bind-Value="DocumentForm.Notes" /></label>
+                    <div class="field wide">
+                        <span>@R["ChooseFile"]</span>
+                        <InputFile OnChange="OnDocumentSelected" />
+                    </div>
+                </div>
+                <footer class="form-actions">
+                    <button class="btn primary" type="submit" disabled="@(SelectedDocument is null)">@S["Upload"]</button>
+                </footer>
+            </EditForm>
+
+            <div class="toolbar" style="margin: 1rem 0;">
+                <select class="select" @bind="DocumentFilter">
+                    <option value="">@S["All"]</option>
+                    @foreach (var type in Enum.GetNames<FathersCare.Domain.Residents.ResidentDocumentType>())
+                    {
+                        <option value="@type">@ReadableToken(type)</option>
+                    }
+                </select>
+            </div>
+
+            @if (FilteredDocuments.Count == 0)
+            {
+                <p>@R["NoDocuments"]</p>
+            }
+            else
+            {
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>@R["DocumentType"]</th>
+                            <th>@R["DocumentTitle"]</th>
+                            <th>@R["FileName"]</th>
+                            <th>@R["ExpiryDate"]</th>
+                            <th>@R["UploadedAt"]</th>
+                            <th>@S["Actions"]</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var document in FilteredDocuments)
+                        {
+                            <tr>
+                                <td>@ReadableToken(document.DocumentType)</td>
+                                <td>@document.Title</td>
+                                <td>@document.FileName</td>
+                                <td>@ValueOrDash(document.ExpiryDate)</td>
+                                <td>@document.UploadedAt</td>
+                                <td>
+                                    <div class="row-actions">
+                                        <a class="btn" href="@document.FilePath" target="_blank">@S["Download"]</a>
+                                        <button class="btn danger-link" type="button" @onclick="() => DeleteDocument(document.Id)">@S["Delete"]</button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </section>
+    }
+    else if (ActiveTab == "notes")
+    {
+        <section class="resident-detail-grid">
+            <div class="panel">
+                <h2>@R["ResidentNotes"]</h2>
+                <p>@ValueOrDash(Model.Notes)</p>
+            </div>
+
+            <div class="panel">
+                <h2>@R["Timeline"]</h2>
+                <div class="timeline-list">
+                    @foreach (var item in Model.Timeline)
+                    {
+                        <div class="timeline-item"><strong>@ReadableToken(item.Label)</strong><span>@ValueOrDash(item.Value)</span></div>
+                    }
+                </div>
+            </div>
+        </section>
+    }
+}
+
+@code {
+    [Parameter] public Guid ResidentId { get; set; }
+
+    private ManagedResidentDetailsViewModel? Model;
+    private string ActiveTab = "basic";
+    private string? Message;
+    private string? DocumentFilter;
+    private IBrowserFile? SelectedDocument;
+    private ResidentDocumentForm DocumentForm { get; set; } = new();
+
+    private IReadOnlyList<(string Key, string Label)> Tabs => new[]
+    {
+        ("basic", R["BasicInformation"].Value),
+        ("admission", R["AdmissionInformation"].Value),
+        ("contacts", R["ContactsAndResponsiblePersons"].Value),
+        ("medical", R["MedicalHistory"].Value),
+        ("medications", R["MedicationsAndSchedules"].Value),
+        ("documents", R["DocumentsAndAttachments"].Value),
+        ("notes", R["NotesAndTimeline"].Value)
+    };
+
+    private IReadOnlyList<ResidentDocumentViewModel> FilteredDocuments =>
+        Model?.Documents
+            .Where(document => string.IsNullOrWhiteSpace(DocumentFilter) || document.DocumentType == DocumentFilter)
+            .ToList() ?? [];
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await Load();
+    }
+
+    private async Task Load()
+    {
+        Model = await ResidentsService.GetDetailsAsync(ResidentId);
+    }
+
+    private async Task UploadDocument()
+    {
+        if (SelectedDocument is null)
+        {
+            return;
+        }
+
+        await using var stream = SelectedDocument.OpenReadStream(10 * 1024 * 1024);
+        await ResidentsService.UploadDocumentAsync(
+            ResidentId,
+            new ResidentDocumentUploadDto(DocumentForm.DocumentType, DocumentForm.Title, DocumentForm.ExpiryDate, DocumentForm.Notes ?? string.Empty, DocumentForm.IsConfidential),
+            stream,
+            SelectedDocument.Name,
+            SelectedDocument.ContentType,
+            SelectedDocument.Size);
+
+        DocumentForm = new ResidentDocumentForm();
+        SelectedDocument = null;
+        Message = S["SavedSuccessfully"];
+        await Load();
+        ActiveTab = "documents";
+    }
+
+    private void OnDocumentSelected(InputFileChangeEventArgs args)
+    {
+        SelectedDocument = args.File;
+        if (string.IsNullOrWhiteSpace(DocumentForm.Title))
+        {
+            DocumentForm.Title = Path.GetFileNameWithoutExtension(args.File.Name);
+        }
+    }
+
+    private async Task DeleteDocument(Guid documentId)
+    {
+        await ResidentsService.DeleteDocumentAsync(ResidentId, documentId);
+        Message = S["SavedSuccessfully"];
+        await Load();
+        ActiveTab = "documents";
+    }
+
+    private RenderFragment RenderPair(string label, string? value) => builder =>
+    {
+        builder.OpenElement(0, "div");
+        builder.AddAttribute(1, "class", "detail-pair");
+        builder.OpenElement(2, "strong");
+        builder.AddContent(3, label);
+        builder.CloseElement();
+        builder.OpenElement(4, "span");
+        builder.AddContent(5, ValueOrDash(value));
+        builder.CloseElement();
+        builder.CloseElement();
+    };
+
+    private string LocalizeStatus(string status) => status switch
+    {
+        "Active" => R["StatusActive"],
+        "TemporarilyAway" => R["StatusTemporarilyAway"],
+        "Discharged" => R["StatusDischarged"],
+        "Deceased" => R["StatusDeceased"],
+        _ => ReadableToken(status)
+    };
+
+    private string LocalizeGender(string value) => value switch
+    {
+        "Male" => R["GenderMale"],
+        "Female" => R["GenderFemale"],
+        _ => ReadableToken(value)
+    };
+
+    private string LocalizeAdmissionStatus(string value) => value switch
+    {
+        "Pending" => R["AdmissionPending"],
+        "Admitted" => R["AdmissionAdmitted"],
+        "OnHold" => R["AdmissionOnHold"],
+        "Closed" => R["AdmissionClosed"],
+        _ => ReadableToken(value)
+    };
+
+    private string LocalizeResidencyType(string value) => value switch
+    {
+        "Permanent" => R["ResidencyPermanent"],
+        "Temporary" => R["ResidencyTemporary"],
+        "DayCare" => R["ResidencyDayCare"],
+        "Observation" => R["ResidencyObservation"],
+        _ => ReadableToken(value)
+    };
+
+    private string LocalizeMaritalStatus(string value) => value switch
+    {
+        "Unknown" => R["MaritalUnknown"],
+        "Single" => R["MaritalSingle"],
+        "Married" => R["MaritalMarried"],
+        "Widowed" => R["MaritalWidowed"],
+        "Divorced" => R["MaritalDivorced"],
+        _ => ReadableToken(value)
+    };
+
+    private static string ValueOrDash(string? value) => string.IsNullOrWhiteSpace(value) ? "-" : value;
+
+    private static string ReadableToken(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return "-";
+        }
+
+        return string.Concat(value.Select((ch, index) => index > 0 && char.IsUpper(ch) ? $" {ch}" : ch.ToString()));
+    }
+
+    private sealed class ResidentDocumentForm
+    {
+        public string DocumentType { get; set; } = FathersCare.Domain.Residents.ResidentDocumentType.NationalIdCopy.ToString();
+        public string Title { get; set; } = string.Empty;
+        public DateOnly? ExpiryDate { get; set; }
+        public string? Notes { get; set; }
+        public bool IsConfidential { get; set; }
+    }
+}

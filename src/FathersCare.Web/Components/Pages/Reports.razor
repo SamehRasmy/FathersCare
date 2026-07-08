@@ -1,0 +1,71 @@
+@page "/reports"
+@using FathersCare.Application.Abstractions
+@inject ICareOverviewService CareOverview
+
+<PageTitle>التقارير المالية ومؤشرات الأداء</PageTitle>
+
+@if (Model is null)
+{
+    <p>جاري تحميل البيانات...</p>
+}
+else
+{
+    <section class="page-title">
+        <div><h1>التقارير المالية ومؤشرات الأداء</h1><p>نظرة شاملة محسوبة من الإيرادات والمصروفات والجداول التشغيلية</p></div>
+        <div class="toolbar"><button class="btn">01/06/2026 - 30/06/2026</button><button class="btn">PDF</button><button class="btn">Excel</button><button class="btn primary">تصدير التقرير</button></div>
+    </section>
+
+    <div class="dashboard-grid">
+        <section class="stats-grid">
+            @foreach (var stat in Model.Stats)
+            {
+                <div class="stat-card @stat.Color"><div class="stat-icon">@stat.Icon</div><div><span>@stat.Title</span><strong>@stat.Value</strong><small>@stat.Caption</small></div></div>
+            }
+        </section>
+
+        <section class="three-col">
+            <div class="panel">
+                <h2>تفاصيل الإيرادات</h2>
+                <div class="donut"><span>@Money(Model.TotalRevenue)</span></div>
+                <table class="data-table"><tbody>@foreach (var row in Model.RevenueBreakdown) { <tr><td>@row.Category</td><td>@Money(row.Amount)</td><td>@row.Percent%</td></tr> }</tbody></table>
+            </div>
+            <div class="panel">
+                <h2>اتجاه الإيرادات والمصروفات وصافي التشغيل</h2>
+                <div class="chart-line"></div>
+                <table class="data-table"><tbody><tr><td>الإيرادات</td><td>@Money(Model.TotalRevenue)</td></tr><tr><td>المصروفات</td><td>@Money(Model.TotalExpense)</td></tr><tr><td>صافي التشغيل</td><td>@Money(Model.NetOperating)</td></tr></tbody></table>
+            </div>
+            <div class="panel">
+                <h2>مقارنة الميزانية</h2>
+                <table class="data-table"><thead><tr><th>البند</th><th>فعلي</th><th>نسبة</th></tr></thead><tbody><tr><td>الإيرادات</td><td>@Money(Model.TotalRevenue)</td><td>@Model.CoveragePercent%</td></tr><tr><td>المصروفات</td><td>@Money(Model.TotalExpense)</td><td>100%</td></tr><tr><td>صافي التشغيل</td><td>@Money(Model.NetOperating)</td><td><span class="status">محقق</span></td></tr></tbody></table>
+            </div>
+        </section>
+
+        <section class="stats-grid compact">
+            <div class="stat-card teal"><div class="stat-icon">و</div><div><span>نسبة تسليم الوجبات</span><strong>94%</strong><small>تشغيلي</small></div></div>
+            <div class="stat-card blue"><div class="stat-icon">د</div><div><span>نسبة تنفيذ الوصفات</span><strong>96%</strong><small>دوائي</small></div></div>
+            <div class="stat-card purple"><div class="stat-icon">ز</div><div><span>نسبة زيارة الطبيب</span><strong>92%</strong><small>رعاية</small></div></div>
+            <div class="stat-card gold"><div class="stat-icon">ر</div><div><span>معدل الرضا العام</span><strong>4.6 / 5</strong><small>تقييم</small></div></div>
+            <div class="stat-card teal"><div class="stat-icon">ص</div><div><span>نسبة الخدمات المستقرة</span><strong>86%</strong><small>نزلاء</small></div></div>
+            <div class="stat-card blue"><div class="stat-icon">غ</div><div><span>معدل الغياب الوظيفي</span><strong>4.2%</strong><small>موظفين</small></div></div>
+        </section>
+
+        <section class="four-col">
+            <div class="panel"><h2>تكلفة الإقامة الشهرية</h2><div class="chart-line"></div></div>
+            <div class="panel"><h2>أعلى مصروفات خلال الفترة</h2><table class="data-table"><tbody>@foreach (var row in Model.ExpenseBreakdown.OrderByDescending(x => x.Amount).Take(5)) { <tr><td>@row.Category</td><td>@Money(row.Amount)</td><td>@row.Percent%</td></tr> }</tbody></table></div>
+            <div class="panel"><h2>المصروفات الفعلية مقابل الميزانية</h2><div class="chart-bars"><div class="bar" style="height:90%"></div><div class="bar alt" style="height:88%"></div><div class="bar" style="height:58%"></div><div class="bar alt" style="height:56%"></div><div class="bar" style="height:34%"></div><div class="bar alt" style="height:31%"></div></div></div>
+            <div class="panel"><h2>أعلى الإيرادات خلال الفترة</h2><table class="data-table"><tbody>@foreach (var row in Model.RevenueBreakdown.OrderByDescending(x => x.Amount).Take(5)) { <tr><td>@row.Category</td><td>@Money(row.Amount)</td><td>@row.Percent%</td></tr> }</tbody></table></div>
+        </section>
+
+        <footer class="bottom-bar"><span>إجمالي الإيرادات @Money(Model.TotalRevenue) جنيه</span><span>إجمالي المصروفات @Money(Model.TotalExpense) جنيه</span><span>صافي التشغيل @Money(Model.NetOperating) جنيه</span><span>نسبة التغطية @Model.CoveragePercent%</span></footer>
+    </div>
+}
+
+@code {
+    private ReportsViewModel? Model;
+    private static string Money(decimal value) => value.ToString("#,0");
+
+    protected override async Task OnInitializedAsync()
+    {
+        Model = await CareOverview.GetReportsAsync();
+    }
+}
