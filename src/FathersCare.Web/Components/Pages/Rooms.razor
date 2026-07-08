@@ -140,7 +140,8 @@ else
                     </div>
                     <label class="field"><span>اسم الدور</span><input class="input" required @bind="NewFloor.Name" /></label>
                     <label class="field"><span>رقم الدور</span><input class="input" type="number" min="1" required @bind="NewFloor.Number" /></label>
-                    <button class="btn primary block" type="button" @onclick="CreateFloorAsync">حفظ الدور</button>
+                    <button class="btn primary block" type="button" disabled="@IsBusy" @onclick="CreateFloorAsync">حفظ الدور</button>
+                    @PanelMessage("floor")
                 </section>
 
                 <section class="panel room-form-panel">
@@ -160,7 +161,8 @@ else
                     </label>
                     <label class="field"><span>رقم الغرفة</span><input class="input" required @bind="NewRoom.Number" /></label>
                     <label class="field"><span>السعة</span><input class="input" type="number" min="1" max="8" required @bind="NewRoom.Capacity" /></label>
-                    <button class="btn primary block" type="button" @onclick="CreateRoomAsync">حفظ الغرفة</button>
+                    <button class="btn primary block" type="button" disabled="@IsBusy" @onclick="CreateRoomAsync">حفظ الغرفة</button>
+                    @PanelMessage("room")
                 </section>
 
                 <section class="panel room-form-panel">
@@ -180,10 +182,11 @@ else
                     </label>
                     <label class="field"><span>عدد الأسرة</span><input class="input" type="number" min="1" max="8" required @bind="ManagedRoom.Capacity" /></label>
                     <div class="room-management-actions">
-                        <button class="btn primary" type="button" @onclick="UpdateRoomCapacityAsync">تعديل السعة</button>
-                        <button class="btn danger" type="button" disabled="@(!CanDeleteManagedRoom)" @onclick="DeleteRoomAsync">حذف الغرفة</button>
+                        <button class="btn primary" type="button" disabled="@IsBusy" @onclick="UpdateRoomCapacityAsync">تعديل السعة</button>
+                        <button class="btn danger" type="button" disabled="@(IsBusy || !CanDeleteManagedRoom)" @onclick="DeleteRoomAsync">حذف الغرفة</button>
                     </div>
                     <small class="room-rule-note">الحذف يتم Soft Delete، ومتاح فقط لو الغرفة بدون نزلاء وبدون صيانة مفتوحة.</small>
+                    @PanelMessage("manage")
                 </section>
 
                 <section class="panel room-form-panel">
@@ -211,7 +214,8 @@ else
                             }
                         </select>
                     </label>
-                    <button class="btn primary block" type="button" @onclick="AssignResidentAsync">تأكيد التسكين</button>
+                    <button class="btn primary block" type="button" disabled="@IsBusy" @onclick="AssignResidentAsync">تأكيد التسكين</button>
+                    @PanelMessage("assign")
                 </section>
             </aside>
         </section>
@@ -256,7 +260,8 @@ else
                     <label class="field"><span>المبلغ</span><input class="input" required @bind="Maintenance.ReportedBy" /></label>
                     <label class="field"><span>المسؤول عن التنفيذ</span><input class="input" @bind="Maintenance.AssignedTo" /></label>
                     <label class="field wide"><span>الوصف</span><textarea class="input textarea" required @bind="Maintenance.Description"></textarea></label>
-                    <button class="btn primary block" type="button" @onclick="CreateMaintenanceAsync">حفظ طلب الصيانة</button>
+                    <button class="btn primary block" type="button" disabled="@IsBusy" @onclick="CreateMaintenanceAsync">حفظ طلب الصيانة</button>
+                    @PanelMessage("maintenance")
                 </div>
             </div>
 
@@ -290,7 +295,7 @@ else
                                     <td><span class="status @request.PriorityState">@PriorityText(request.Priority)</span></td>
                                     <td>@request.AssignedTo</td>
                                     <td>@request.ReportedAt</td>
-                                    <td><button class="btn primary" type="button" @onclick="() => CompleteMaintenanceAsync(request.Id)">تم التنفيذ</button></td>
+                                    <td><button class="btn primary" type="button" disabled="@IsBusy" @onclick="() => CompleteMaintenanceAsync(request.Id)">تم التنفيذ</button></td>
                                 </tr>
                             }
                         </tbody>
@@ -305,6 +310,8 @@ else
     private RoomsWorkspaceViewModel? Model;
     private string? Message;
     private bool MessageIsError;
+    private bool IsBusy;
+    private string LastActionArea = string.Empty;
     private Guid? SelectedFloorId;
     private FloorForm NewFloor { get; set; } = new();
     private RoomForm NewRoom { get; set; } = new();
@@ -339,6 +346,7 @@ else
 
     private async Task CreateFloorAsync()
     {
+        LastActionArea = "floor";
         await ExecuteAsync(async () =>
         {
             await RoomService.CreateFloorAsync(new RoomFloorCreateDto(NewFloor.Name, NewFloor.Number));
@@ -349,6 +357,7 @@ else
 
     private async Task CreateRoomAsync()
     {
+        LastActionArea = "room";
         await ExecuteAsync(async () =>
         {
             await RoomService.CreateRoomAsync(new RoomCreateDto(NewRoom.FloorId, NewRoom.Number, NewRoom.Capacity));
@@ -359,6 +368,7 @@ else
 
     private async Task UpdateRoomCapacityAsync()
     {
+        LastActionArea = "manage";
         await ExecuteAsync(async () =>
         {
             await RoomService.UpdateRoomCapacityAsync(new RoomCapacityUpdateDto(ManagedRoom.RoomId, ManagedRoom.Capacity));
@@ -368,6 +378,7 @@ else
 
     private async Task DeleteRoomAsync()
     {
+        LastActionArea = "manage";
         await ExecuteAsync(async () =>
         {
             await RoomService.DeleteRoomAsync(ManagedRoom.RoomId);
@@ -378,6 +389,7 @@ else
 
     private async Task AssignResidentAsync()
     {
+        LastActionArea = "assign";
         await ExecuteAsync(async () =>
         {
             await RoomService.AssignResidentToRoomAsync(new RoomAssignmentDto(Assignment.ResidentId, Assignment.RoomId));
@@ -387,6 +399,7 @@ else
 
     private async Task CreateMaintenanceAsync()
     {
+        LastActionArea = "maintenance";
         await ExecuteAsync(async () =>
         {
             await RoomService.CreateMaintenanceRequestAsync(new RoomMaintenanceCreateDto(
@@ -404,6 +417,7 @@ else
 
     private async Task CompleteMaintenanceAsync(Guid requestId)
     {
+        LastActionArea = "maintenance";
         await ExecuteAsync(async () =>
         {
             await RoomService.CompleteMaintenanceRequestAsync(requestId, "system");
@@ -413,8 +427,14 @@ else
 
     private async Task ExecuteAsync(Func<Task> action)
     {
+        if (IsBusy)
+        {
+            return;
+        }
+
         try
         {
+            IsBusy = true;
             MessageIsError = false;
             await action();
             await Load();
@@ -429,7 +449,24 @@ else
             MessageIsError = true;
             Message = TranslateError(ex.Message);
         }
+        finally
+        {
+            IsBusy = false;
+        }
     }
+
+    private RenderFragment PanelMessage(string area) => builder =>
+    {
+        if (LastActionArea != area || string.IsNullOrWhiteSpace(Message))
+        {
+            return;
+        }
+
+        builder.OpenElement(0, "small");
+        builder.AddAttribute(1, "class", $"room-inline-note {(MessageIsError ? "error" : "success")}");
+        builder.AddContent(2, Message);
+        builder.CloseElement();
+    };
 
     private static int RoomFill(RoomCardDto room) =>
         room.Capacity <= 0 ? 0 : Math.Clamp((int)Math.Round(room.Occupied * 100m / room.Capacity), 0, 100);

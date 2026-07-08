@@ -1427,6 +1427,27 @@ a {
     line-height: 1.5;
 }
 
+.room-inline-note {
+    display: block;
+    padding: 8px 10px;
+    border-radius: 7px;
+    font-size: 12px;
+    font-weight: 900;
+    line-height: 1.45;
+}
+
+.room-inline-note.success {
+    border: 1px solid #b7e4c7;
+    background: #f0fbf4;
+    color: #14823f;
+}
+
+.room-inline-note.error {
+    border: 1px solid #f3c7c2;
+    background: #fff4f2;
+    color: #b42318;
+}
+
 .rooms-actions {
     display: grid;
     gap: 12px;
