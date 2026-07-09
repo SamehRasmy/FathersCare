@@ -33,7 +33,7 @@ public sealed class CareOverviewService(AppDbContext db) : ICareOverviewService
                 new("أنشطة روحية", "1", "نشاط", "purple", "ر"),
                 new("مواعيد قادمة", "4", "مواعيد", "blue", "م")
             ],
-            PriorityDoses = doses.Take(3).ToList(),
+            PriorityDoses = doses.Where(x => x.Status != "تم الإعطاء").OrderBy(x => x.Time).Take(4).ToList(),
             Rooms = rooms.Select((room, index) => new RoomTileDto(room.Number, (index % 7) switch
             {
                 1 => "danger",

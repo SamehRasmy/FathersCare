@@ -6,6 +6,12 @@
 
 <PageTitle>@T["Residents.Title"]</PageTitle>
 
+<HeadContent>
+    <link rel="stylesheet" href="/css/fathers-residents.css" />
+</HeadContent>
+
+<div class="fc-residents-page fc-residents-list-page">
+
 @if (Model is null)
 {
     <p>@T["Common.Loading"]</p>
@@ -122,6 +128,7 @@ else
     </section>
 }
 
+</div>
 @code {
     private ResidentsWorkspaceViewModel? Model;
     private string? SearchText;

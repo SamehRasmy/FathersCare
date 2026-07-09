@@ -10,6 +10,12 @@
 
 <PageTitle>@R["ResidentProfile"]</PageTitle>
 
+<HeadContent>
+    <link rel="stylesheet" href="/css/fathers-residents.css" />
+</HeadContent>
+
+<div class="fc-residents-page fc-resident-details-page">
+
 @if (Model is null)
 {
     <p>@S["Loading"]</p>
@@ -313,6 +319,7 @@ else
     }
 }
 
+</div>
 @code {
     [Parameter] public Guid ResidentId { get; set; }
 

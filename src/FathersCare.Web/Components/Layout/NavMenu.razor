@@ -1,45 +1,70 @@
 @inject UiText T
 
-<div class="brand-panel">
+<div class="brand-panel sidebar-brand-ultra">
     <div class="crest">
         <img src="images/fathers-care-logo.jpg" alt="Fathers Care logo" />
     </div>
-    <div class="brand-ar">@T["App.Organization"]<br />@T["App.Facility"]<br />@T["App.Location"]</div>
-    <div class="brand-en">@T["App.Name"].ToUpperInvariant()</div>
+    <div class="brand-ar">دار القديس إسطفانوس<br /><span>للآباء المسنين - المعادي</span></div>
+    <div class="brand-en">FATHERS CARE</div>
     <div class="brand-tagline">@T["App.Tagline"]</div>
 </div>
 
-<nav class="side-nav">
-    <NavLink href="" Match="NavLinkMatch.All">@T["Nav.Dashboard"]</NavLink>
-    <NavLink href="residents">@T["Nav.Residents"]</NavLink>
-    <NavLink href="medications">@T["Nav.Medications"]</NavLink>
-    <NavLink href="nutrition">@T["Nav.Nutrition"]</NavLink>
-    <NavLink href="reports">@T["Nav.Reports"]</NavLink>
-    <a href="#">@T["Nav.Healthcare"]</a>
-    <NavLink href="rooms">@T["Nav.Rooms"]</NavLink>
-    <a href="#">@T["Nav.SpiritualLife"]</a>
-    <a href="#">@T["Nav.Staff"]</a>
-    <a href="#">@T["Nav.Finance"]</a>
-    <a href="#">@T["Nav.Inventory"]</a>
-    <a href="#">@T["Nav.Maintenance"]</a>
-    <a href="#">@T["Nav.Settings"]</a>
-</nav>
-
-<div class="sidebar-card profile-card">
-    <div class="avatar large">@T["Topbar.UserName"].FirstOrDefault()</div>
-    <div>
-        <strong>@T["Topbar.UserName"]</strong>
-        <span>@T["Topbar.UserRole"]</span>
-        <small>@T["Topbar.Online"]</small>
+<nav class="side-nav ultra-nav" aria-label="@T["Topbar.Menu"]">
+    <div class="nav-section">
+        <span class="nav-section-title">@T["Nav.Section.Core"]</span>
+        <NavLink class="nav-item" href="" Match="NavLinkMatch.All">
+            <span class="nav-label">@T["Nav.Dashboard"]</span>
+        </NavLink>
+        <NavLink class="nav-item" href="residents">
+            <span class="nav-label">@T["Nav.Residents"]</span>
+        </NavLink>
+        <NavLink class="nav-item" href="rooms">
+            <span class="nav-label">@T["Nav.Rooms"]</span>
+        </NavLink>
+        <NavLink class="nav-item" href="medications">
+            <span class="nav-label">@T["Nav.Medications"]</span>
+        </NavLink>
+        <NavLink class="nav-item" href="nutrition">
+            <span class="nav-label">@T["Nav.Nutrition"]</span>
+        </NavLink>
     </div>
-</div>
 
-<div class="sidebar-card weather-card">
-    <span>@DateTime.Today.ToString("dddd", System.Globalization.CultureInfo.CurrentUICulture)<br />@DateTime.Today.ToString("d MMMM yyyy", System.Globalization.CultureInfo.CurrentUICulture)</span>
-    <strong>28°C</strong>
-    <span>@(T.IsArabic ? "صافي" : "Clear")</span>
-</div>
+    <div class="nav-section">
+        <span class="nav-section-title">@T["Nav.Section.Care"]</span>
+        <span class="nav-item disabled" role="link" aria-disabled="true">
+            <span class="nav-label">@T["Nav.Healthcare"]</span>
+            <span class="nav-badge">@T["Nav.ComingSoon"]</span>
+        </span>
+        <span class="nav-item disabled" role="link" aria-disabled="true">
+            <span class="nav-label">@T["Nav.SpiritualLife"]</span>
+            <span class="nav-badge">@T["Nav.ComingSoon"]</span>
+        </span>
+    </div>
 
-<div class="sidebar-card time-card">
-    <span>@DateTime.Now.ToString("hh:mm tt", System.Globalization.CultureInfo.CurrentUICulture)</span>
-</div>
+    <div class="nav-section">
+        <span class="nav-section-title">@T["Nav.Section.Admin"]</span>
+        <NavLink class="nav-item" href="reports">
+            <span class="nav-label">@T["Nav.Reports"]</span>
+        </NavLink>
+        <span class="nav-item disabled" role="link" aria-disabled="true">
+            <span class="nav-label">@T["Nav.Staff"]</span>
+            <span class="nav-badge">@T["Nav.ComingSoon"]</span>
+        </span>
+        <span class="nav-item disabled" role="link" aria-disabled="true">
+            <span class="nav-label">@T["Nav.Finance"]</span>
+            <span class="nav-badge">@T["Nav.ComingSoon"]</span>
+        </span>
+        <span class="nav-item disabled" role="link" aria-disabled="true">
+            <span class="nav-label">@T["Nav.Inventory"]</span>
+            <span class="nav-badge">@T["Nav.ComingSoon"]</span>
+        </span>
+        <span class="nav-item disabled" role="link" aria-disabled="true">
+            <span class="nav-label">@T["Nav.Maintenance"]</span>
+            <span class="nav-badge">@T["Nav.ComingSoon"]</span>
+        </span>
+        <span class="nav-item disabled" role="link" aria-disabled="true">
+            <span class="nav-label">@T["Nav.Settings"]</span>
+            <span class="nav-badge">@T["Nav.ComingSoon"]</span>
+        </span>
+    </div>
+</nav>

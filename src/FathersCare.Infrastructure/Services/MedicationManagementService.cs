@@ -1,4 +1,4 @@
-using FathersCare.Application.Abstractions;
+﻿﻿using FathersCare.Application.Abstractions;
 using FathersCare.Application.Medications.Validation;
 using FathersCare.Domain.Medications;
 using FathersCare.Domain.Notifications;
@@ -36,7 +36,14 @@ public sealed class MedicationManagementService(AppDbContext db) : IMedicationMa
             join residentMedicine in db.ResidentMedicines.AsNoTracking() on schedule.ResidentMedicineId equals residentMedicine.Id
             join medicine in db.Medicines.AsNoTracking() on residentMedicine.MedicineId equals medicine.Id
             join resident in db.Residents.AsNoTracking() on residentMedicine.ResidentId equals resident.Id
-            where dose.DoseDate == today && !dose.IsDeleted && !schedule.IsDeleted && !residentMedicine.IsDeleted && !resident.IsDeleted
+            where dose.DoseDate == today
+                && !dose.IsDeleted
+                && !schedule.IsDeleted
+                && residentMedicine.IsActive
+                && !residentMedicine.IsDeleted
+                && !resident.IsDeleted
+                && (residentMedicine.StartsOn == null || residentMedicine.StartsOn <= today)
+                && (residentMedicine.EndsOn == null || residentMedicine.EndsOn >= today)
             orderby schedule.DoseTime
             select new { Dose = dose, Schedule = schedule, ResidentMedicine = residentMedicine, Medicine = medicine, Resident = resident };
 
@@ -87,6 +94,11 @@ public sealed class MedicationManagementService(AppDbContext db) : IMedicationMa
         }
 
         var batchRows = await batchesQuery.ToListAsync(cancellationToken);
+        var usableBatchRows = batchRows
+            .Where(row => row.Batch.QuantityRemaining > 0
+                && (!row.Batch.ExpiresOn.HasValue || row.Batch.ExpiresOn.Value >= today))
+            .ToList();
+
         var batches = batchRows.Select(row => new MedicationBatchRowDto(
             row.Batch.Id,
             row.Resident.FullName,
@@ -104,7 +116,11 @@ public sealed class MedicationManagementService(AppDbContext db) : IMedicationMa
             from residentMedicine in db.ResidentMedicines.AsNoTracking()
             join medicine in db.Medicines.AsNoTracking() on residentMedicine.MedicineId equals medicine.Id
             join resident in db.Residents.AsNoTracking() on residentMedicine.ResidentId equals resident.Id
-            where residentMedicine.IsActive && !residentMedicine.IsDeleted && !resident.IsDeleted
+            where residentMedicine.IsActive
+                && !residentMedicine.IsDeleted
+                && !resident.IsDeleted
+                && (residentMedicine.StartsOn == null || residentMedicine.StartsOn <= today)
+                && (residentMedicine.EndsOn == null || residentMedicine.EndsOn >= today)
             orderby resident.FullName, medicine.Name
             select new { ResidentMedicine = residentMedicine, Medicine = medicine, Resident = resident };
 
@@ -119,7 +135,8 @@ public sealed class MedicationManagementService(AppDbContext db) : IMedicationMa
             .Where(schedule => !schedule.IsDeleted && planIds.Contains(schedule.ResidentMedicineId))
             .OrderBy(schedule => schedule.DoseTime)
             .ToListAsync(cancellationToken);
-        var stockByPlan = batchRows
+
+        var stockByPlan = usableBatchRows
             .GroupBy(row => row.Batch.ResidentMedicineId)
             .ToDictionary(group => group.Key, group => group.Sum(row => row.Batch.QuantityRemaining));
 
@@ -127,6 +144,8 @@ public sealed class MedicationManagementService(AppDbContext db) : IMedicationMa
         {
             var planSchedules = schedules.Where(schedule => schedule.ResidentMedicineId == row.ResidentMedicine.Id).ToList();
             var stock = stockByPlan.GetValueOrDefault(row.ResidentMedicine.Id);
+            var dailyRequired = planSchedules.Sum(schedule => schedule.Quantity);
+
             return new ResidentMedicationPlanRowDto(
                 row.ResidentMedicine.Id,
                 row.Resident.FullName,
@@ -134,14 +153,25 @@ public sealed class MedicationManagementService(AppDbContext db) : IMedicationMa
                 InstructionText(row.ResidentMedicine.Instructions),
                 string.Join("، ", planSchedules.Select(schedule => $"{schedule.DoseTime:HH\\:mm} - {TimingText(schedule.Timing)} ({DoseText(schedule.Quantity, row.Medicine.Form)})")),
                 QuantityText(stock, row.Medicine.Form),
-                $"{row.ResidentMedicine.StartsOn:dd/MM/yyyy} - {row.ResidentMedicine.EndsOn:dd/MM/yyyy}",
-                stock <= planSchedules.Sum(schedule => schedule.Quantity) * 3 ? "danger" : "");
+                PlanPeriodText(row.ResidentMedicine.StartsOn, row.ResidentMedicine.EndsOn),
+                stock <= 0 || (dailyRequired > 0 && stock <= dailyRequired * 3) ? "danger" : "");
         }).ToList();
 
         var lateCount = doseRows.Count(row => row.Dose.Status == DoseAdministrationStatus.Scheduled && row.Schedule.DoseTime < now);
         var dueNowCount = doseRows.Count(row => row.Dose.Status == DoseAdministrationStatus.Scheduled && row.Schedule.DoseTime >= now && row.Schedule.DoseTime <= inThirtyMinutes);
         var lowStockCount = plans.Count(plan => plan.State == "danger");
-        var expiringSoonCount = batchRows.Count(row => row.Batch.ExpiresOn.HasValue && row.Batch.ExpiresOn.Value <= today.AddDays(30));
+        var blockedByStockCount = doseRows.Count(row =>
+            row.Dose.Status == DoseAdministrationStatus.Scheduled
+            && availableStockByPlan.GetValueOrDefault(row.ResidentMedicine.Id) < row.Schedule.Quantity);
+        var expiredBatchCount = batchRows.Count(row =>
+            row.Batch.QuantityRemaining > 0
+            && row.Batch.ExpiresOn.HasValue
+            && row.Batch.ExpiresOn.Value < today);
+        var expiringSoonCount = batchRows.Count(row =>
+            row.Batch.QuantityRemaining > 0
+            && row.Batch.ExpiresOn.HasValue
+            && row.Batch.ExpiresOn.Value >= today
+            && row.Batch.ExpiresOn.Value <= today.AddDays(30));
 
         return new MedicationOperationsViewModel
         {
@@ -158,8 +188,10 @@ public sealed class MedicationManagementService(AppDbContext db) : IMedicationMa
             [
                 new("جرعات متأخرة تحتاج تنفيذ", lateCount.ToString(), lateCount > 0 ? "danger" : ""),
                 new("جرعات خلال 30 دقيقة", dueNowCount.ToString(), dueNowCount > 0 ? "warn" : ""),
-                new("أرصدة دواء منخفضة", lowStockCount.ToString(), lowStockCount > 0 ? "danger" : ""),
-                new("صلاحيات خلال 30 يوم", expiringSoonCount.ToString(), expiringSoonCount > 0 ? "warn" : "")
+                new("جرعات معلقة بسبب عدم وجود رصيد", blockedByStockCount.ToString(), blockedByStockCount > 0 ? "danger" : ""),
+                new("خطط علاج برصيد منخفض", lowStockCount.ToString(), lowStockCount > 0 ? "danger" : ""),
+                new("دفعات منتهية الصلاحية", expiredBatchCount.ToString(), expiredBatchCount > 0 ? "danger" : ""),
+                new("دفعات تنتهي خلال 30 يوم", expiringSoonCount.ToString(), expiringSoonCount > 0 ? "warn" : "")
             ]
         };
     }
@@ -613,14 +645,36 @@ public sealed class MedicationManagementService(AppDbContext db) : IMedicationMa
         var today = DateOnly.FromDateTime(DateTime.Today);
         var schedules = await db.MedicineSchedules.AsNoTracking()
             .Include(schedule => schedule.ResidentMedicine)
-            .Where(schedule => !schedule.IsDeleted && schedule.ResidentMedicine!.IsActive && !schedule.ResidentMedicine.IsDeleted)
+            .Where(schedule => !schedule.IsDeleted
+                && schedule.ResidentMedicine != null
+                && schedule.ResidentMedicine.IsActive
+                && !schedule.ResidentMedicine.IsDeleted
+                && (schedule.ResidentMedicine.StartsOn == null || schedule.ResidentMedicine.StartsOn <= today)
+                && (schedule.ResidentMedicine.EndsOn == null || schedule.ResidentMedicine.EndsOn >= today))
             .ToListAsync(cancellationToken);
-        var existingScheduleIds = await db.DoseAdministrations.AsNoTracking()
+        var currentScheduleIds = schedules.Select(schedule => schedule.Id).ToHashSet();
+        var todayDoses = await db.DoseAdministrations
+            .Include(dose => dose.MedicineSchedule)
+                .ThenInclude(schedule => schedule!.ResidentMedicine)
             .Where(dose => dose.DoseDate == today && !dose.IsDeleted)
-            .Select(dose => dose.MedicineScheduleId)
             .ToListAsync(cancellationToken);
 
         var now = DateTimeOffset.UtcNow;
+        var hasChanges = false;
+
+        foreach (var dose in todayDoses.Where(dose => !IsScheduleCurrent(dose.MedicineSchedule, today)))
+        {
+            dose.IsDeleted = true;
+            dose.DeletedAt = now;
+            dose.UpdatedAt = now;
+            hasChanges = true;
+        }
+
+        var existingScheduleIds = todayDoses
+            .Where(dose => !dose.IsDeleted && currentScheduleIds.Contains(dose.MedicineScheduleId))
+            .Select(dose => dose.MedicineScheduleId)
+            .ToHashSet();
+
         foreach (var schedule in schedules.Where(schedule => !existingScheduleIds.Contains(schedule.Id)))
         {
             db.DoseAdministrations.Add(new DoseAdministration
@@ -631,9 +685,13 @@ public sealed class MedicationManagementService(AppDbContext db) : IMedicationMa
                 Status = DoseAdministrationStatus.Scheduled,
                 CreatedAt = now
             });
+            hasChanges = true;
         }
 
-        await db.SaveChangesAsync(cancellationToken);
+        if (hasChanges)
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
     }
 
     private async Task<DoseAdministration> LoadDoseForUpdate(Guid doseAdministrationId, CancellationToken cancellationToken)
@@ -654,7 +712,7 @@ public sealed class MedicationManagementService(AppDbContext db) : IMedicationMa
 
         var tenant = new Tenant
         {
-            Name = "دار القديسين استفانوس",
+            Name = "دار القديس إسطفانوس",
             LegalName = "جمعية راهبات الصليب",
             CreatedAt = DateTimeOffset.UtcNow
         };
@@ -754,6 +812,11 @@ public sealed class MedicationManagementService(AppDbContext db) : IMedicationMa
 
     private static string BatchState(ResidentMedicineBatch batch, DateOnly today)
     {
+        if (batch.ExpiresOn.HasValue && batch.ExpiresOn.Value < today)
+        {
+            return "danger";
+        }
+
         if (batch.QuantityRemaining <= 0)
         {
             return "danger";
@@ -782,4 +845,25 @@ public sealed class MedicationManagementService(AppDbContext db) : IMedicationMa
         DoseAdministrationStatus.Skipped => "warn",
         _ => isLate ? "danger" : "warn"
     };
+
+    private static string PlanPeriodText(DateOnly? startsOn, DateOnly? endsOn)
+    {
+        var start = startsOn?.ToString("dd/MM/yyyy") ?? "-";
+        var end = endsOn?.ToString("dd/MM/yyyy") ?? "-";
+        return $"{start} - {end}";
+    }
+
+    private static bool IsScheduleCurrent(MedicineSchedule? schedule, DateOnly date)
+    {
+        var residentMedicine = schedule?.ResidentMedicine;
+        return schedule is not null
+            && !schedule.IsDeleted
+            && residentMedicine is not null
+            && residentMedicine.IsActive
+            && !residentMedicine.IsDeleted
+            && (residentMedicine.StartsOn == null || residentMedicine.StartsOn <= date)
+            && (residentMedicine.EndsOn == null || residentMedicine.EndsOn >= date);
+    }
 }
+
+

@@ -8,236 +8,611 @@
 @inject IMedicationManagementService MedicationService
 @inject IResidentManagementService ResidentsService
 
+<HeadContent>
+    <link rel="stylesheet" href="/css/fathers-medications.css" />
+</HeadContent>
+
 <PageTitle>إدارة الأدوية</PageTitle>
 
 @if (Model is null)
 {
-    <p>جاري تحميل بيانات الأدوية...</p>
+    <section class="fc-med-page">
+        <div class="fc-loading-card">
+            <div class="fc-spinner"></div>
+            <strong>جاري تحميل بيانات الأدوية...</strong>
+            <span>يتم تجهيز الجرعات والتنبيهات والمخزون الحالي.</span>
+        </div>
+    </section>
 }
 else
 {
-    <div class="medication-page">
-    <section class="page-title medication-title">
-        <div>
-            <h1>إدارة الأدوية والتنفيذ الفعلي</h1>
-            <p>استلام دواء النزيل بالكميات والصلاحية والروشتة، ثم تحويل الخطة إلى تنبيهات جرعات واضحة للتنفيذ اليومي.</p>
+    <section class="fc-med-page" dir="rtl">
+        <header class="fc-med-header">
+            <div class="fc-med-title-block">
+                <span class="fc-breadcrumb">الرئيسية / إدارة الأدوية</span>
+                <h1>إدارة الأدوية</h1>
+                <p>متابعة الجرعات اليومية، الرصيد، الصلاحية، وخطط العلاج المرتبطة بالنزلاء في شاشة تشغيلية واحدة.</p>
+            </div>
+
+            <div class="fc-med-header-actions">
+                <a class="fc-btn fc-btn-light" href="/residents">العودة إلى النزلاء</a>
+                <button type="button" class="fc-btn fc-btn-light" @onclick="Load">تحديث</button>
+                <button type="button" class="fc-btn fc-btn-primary" @onclick="OpenReceiveForm">استلام دواء / خطة علاج</button>
+            </div>
+        </header>
+
+        @if (!string.IsNullOrWhiteSpace(Message))
+        {
+            <div class="fc-message @(MessageIsError ? "fc-message-error" : "fc-message-success")">
+                <span>@(MessageIsError ? "!" : "✓")</span>
+                <p>@Message</p>
+            </div>
+        }
+
+        <div class="fc-summary-grid">
+            <article class="fc-summary-card is-danger">
+                <div class="fc-summary-icon">!</div>
+                <span>جرعات متأخرة</span>
+                <strong>@Model.LateCount</strong>
+                <small>تحتاج إجراء الآن</small>
+            </article>
+
+            <article class="fc-summary-card is-warning">
+                <div class="fc-summary-icon">!</div>
+                <span>خلال 30 دقيقة</span>
+                <strong>@Model.DueNowCount</strong>
+                <small>تنبيهات تنفيذ</small>
+            </article>
+
+            <article class="fc-summary-card is-primary">
+                <div class="fc-summary-icon">ج</div>
+                <span>إجمالي جرعات اليوم</span>
+                <strong>@Model.TodayDoses.Count</strong>
+                <small>جرعة مسجلة</small>
+            </article>
+
+            <article class="fc-summary-card is-info">
+                <div class="fc-summary-icon">خ</div>
+                <span>خطط علاج نشطة</span>
+                <strong>@Model.Plans.Count</strong>
+                <small>مرتبطة بالنزلاء</small>
+            </article>
+
+            <article class="fc-summary-card is-danger">
+                <div class="fc-summary-icon">!</div>
+                <span>رصيد منخفض</span>
+                <strong>@Model.LowStockCount</strong>
+                <small>يتطلب استلام جديد</small>
+            </article>
+
+            <article class="fc-summary-card is-warning">
+                <div class="fc-summary-icon">ص</div>
+                <span>صلاحية قريبة</span>
+                <strong>@Model.ExpiringSoonCount</strong>
+                <small>خلال 30 يوم</small>
+            </article>
         </div>
-        <div class="toolbar">
-            <a class="btn" href="residents">العودة للنزلاء</a>
-            <button class="btn" type="button" @onclick="Load">تحديث</button>
-            <button class="btn primary" type="button">@DateTime.Today.ToString("dd / MM / yyyy")</button>
-        </div>
-    </section>
 
-    @if (!string.IsNullOrWhiteSpace(Message))
-    {
-        <div class="form-note @(MessageIsError ? "error-note" : string.Empty)">@Message</div>
-    }
-
-    <section class="stats-grid compact residents-kpis medication-kpis">
-        <div class="stat-card red"><div class="stat-icon">!</div><div><span>جرعات متأخرة</span><strong>@Model.LateCount</strong><small>تحتاج إجراء الآن</small></div></div>
-        <div class="stat-card gold"><div class="stat-icon">!</div><div><span>خلال 30 دقيقة</span><strong>@Model.DueNowCount</strong><small>تنبيهات تنفيذ</small></div></div>
-        <div class="stat-card blue"><div class="stat-icon">د</div><div><span>خطط دواء نشطة</span><strong>@Model.Plans.Count</strong><small>مرتبطة بالنزلاء</small></div></div>
-        <div class="stat-card teal"><div class="stat-icon">م</div><div><span>دفعات مستلمة</span><strong>@Model.Batches.Count</strong><small>برصيد وصلاحية</small></div></div>
-        <div class="stat-card red"><div class="stat-icon">!</div><div><span>رصيد منخفض</span><strong>@Model.LowStockCount</strong><small>يتطلب استلام جديد</small></div></div>
-        <div class="stat-card gold"><div class="stat-icon">ص</div><div><span>صلاحية قريبة</span><strong>@Model.ExpiringSoonCount</strong><small>خلال 30 يوم</small></div></div>
-    </section>
-
-    <section class="medication-workspace">
-        <div class="medication-main">
-        <div class="panel medication-panel medication-today">
-            <div class="panel-heading">
-                <div>
-                    <h2>تنبيهات الجرعات اليوم</h2>
-                    <p>كل جرعة لها وقت واضح وحالة تنفيذ، وزر "تم الإعطاء" يخصم تلقائيًا من أقرب رصيد صالح.</p>
+        <div class="fc-panels-grid">
+            <section class="fc-card">
+                <div class="fc-card-header">
+                    <div>
+                        <h2>تنبيهات مهمة</h2>
+                        <p>أهم المؤشرات التي تحتاج متابعة تشغيلية.</p>
+                    </div>
+                    <span class="fc-counter">@Model.Alerts.Count</span>
                 </div>
-            </div>
-            <div class="table-scroll medication-dose-table">
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>الموعد والنزيل</th>
-                        <th>الدواء والجرعة</th>
-                        <th>تعليمات</th>
-                        <th>الحالة</th>
-                        <th>تنفيذ</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var dose in Model.TodayDoses)
-                    {
-                        <tr>
-                            <td><strong>@dose.Time</strong><span class="cell-subtitle">@dose.Resident</span></td>
-                            <td><strong>@dose.Medicine</strong><span class="cell-subtitle">@dose.Dose</span></td>
-                            <td>@dose.Instructions</td>
-                            <td><span class="status @dose.State">@dose.Status</span></td>
-                            <td>
-                                <div class="row-actions">
-                                    <button class="btn primary" type="button" disabled="@(!dose.CanGive)" @onclick="() => GiveDose(dose.Id)">تم</button>
-                                    <button class="btn" type="button" disabled="@(!dose.CanGive)" @onclick="() => MissDose(dose.Id)">فات</button>
-                                    <button class="btn" type="button" disabled="@(!dose.CanGive)" @onclick="() => SkipDose(dose.Id)">تخط</button>
-                                </div>
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-            </div>
-        </div>
 
-        <div class="panel medication-panel medication-alerts">
-            <h2>تنبيهات تشغيلية</h2>
-            <table class="data-table">
-                <tbody>
+                <div class="fc-alert-list">
                     @foreach (var alert in Model.Alerts)
                     {
-                        <tr><td>@alert.Label</td><td><span class="status @alert.Status">@alert.Value</span></td></tr>
+                        <div class="fc-alert-row @AlertClass(alert.Label, alert.Value)">
+                            <span>@alert.Label</span>
+                            <strong>@alert.Value</strong>
+                        </div>
                     }
-                </tbody>
-            </table>
-        </div>
-        </div>
-
-        <section class="panel form-panel medication-intake-panel">
-        <div class="panel-heading">
-            <div>
-                <h2>استلام دواء من النزيل / الأسرة</h2>
-                <p>سجل الكمية المستلمة، تاريخ الصلاحية، بيانات الروشتة، والمستلم داخل الدار. بعد الحفظ يتم إنشاء خطة الجرعات والتنبيهات تلقائيًا.</p>
-            </div>
-        </div>
-
-        <EditForm EditContext="ReceiveEditContext" FormName="medication-receive" OnSubmit="SubmitReceiveMedicine">
-            <ValidationSummary class="validation-summary" />
-            <div class="form-grid">
-                <label class="field">
-                    <span>النزيل</span>
-                    <InputSelect class="@SelectClass(() => ReceiveForm.ResidentId)" @bind-Value="ReceiveForm.ResidentId">
-                        <option value="">اختر النزيل</option>
-                        @foreach (var resident in Model.Residents)
-                        {
-                            <option value="@resident.Id">@resident.Name</option>
-                        }
-                    </InputSelect>
-                    <ValidationMessage class="field-validation" For="() => ReceiveForm.ResidentId" />
-                </label>
-                <label class="field"><span>اسم الدواء</span><InputText class="@InputClass(() => ReceiveForm.MedicineName)" @bind-Value="ReceiveForm.MedicineName" /><ValidationMessage class="field-validation" For="() => ReceiveForm.MedicineName" /></label>
-                <label class="field"><span>التركيز</span><InputText class="input" @bind-Value="ReceiveForm.Strength" /></label>
-                <label class="field"><span>الشكل</span><InputText class="@InputClass(() => ReceiveForm.Form)" @bind-Value="ReceiveForm.Form" /><ValidationMessage class="field-validation" For="() => ReceiveForm.Form" /></label>
-                <label class="field"><span>الكمية المستلمة</span><InputNumber class="@InputClass(() => ReceiveForm.QuantityReceived)" @bind-Value="ReceiveForm.QuantityReceived" /><ValidationMessage class="field-validation" For="() => ReceiveForm.QuantityReceived" /></label>
-                <label class="field"><span>تاريخ الاستلام</span><InputDate class="@InputClass(() => ReceiveForm.ReceivedOn)" @bind-Value="ReceiveForm.ReceivedOn" /><ValidationMessage class="field-validation" For="() => ReceiveForm.ReceivedOn" /></label>
-                <label class="field"><span>تاريخ الصلاحية</span><InputDate class="@InputClass(() => ReceiveForm.ExpiresOn)" @bind-Value="ReceiveForm.ExpiresOn" /><ValidationMessage class="field-validation" For="() => ReceiveForm.ExpiresOn" /></label>
-                <label class="field"><span>المُسلِّم</span><InputText class="@InputClass(() => ReceiveForm.ReceivedFrom)" @bind-Value="ReceiveForm.ReceivedFrom" /><ValidationMessage class="field-validation" For="() => ReceiveForm.ReceivedFrom" /></label>
-                <label class="field"><span>المستلم بالدار</span><InputText class="@InputClass(() => ReceiveForm.ReceivedBy)" @bind-Value="ReceiveForm.ReceivedBy" /><ValidationMessage class="field-validation" For="() => ReceiveForm.ReceivedBy" /></label>
-                <label class="field"><span>الطبيب</span><InputText class="@InputClass(() => ReceiveForm.PrescribedBy)" @bind-Value="ReceiveForm.PrescribedBy" /><ValidationMessage class="field-validation" For="() => ReceiveForm.PrescribedBy" /></label>
-                <label class="field"><span>رقم / مرجع الروشتة</span><InputText class="@InputClass(() => ReceiveForm.PrescriptionReference)" @bind-Value="ReceiveForm.PrescriptionReference" /><ValidationMessage class="field-validation" For="() => ReceiveForm.PrescriptionReference" /></label>
-                <label class="field"><span>تاريخ الروشتة</span><InputDate class="@InputClass(() => ReceiveForm.PrescriptionDate)" @bind-Value="ReceiveForm.PrescriptionDate" /><ValidationMessage class="field-validation" For="() => ReceiveForm.PrescriptionDate" /></label>
-                <label class="field"><span>بداية الخطة</span><InputDate class="@InputClass(() => ReceiveForm.StartsOn)" @bind-Value="ReceiveForm.StartsOn" /><ValidationMessage class="field-validation" For="() => ReceiveForm.StartsOn" /></label>
-                <label class="field"><span>نهاية الخطة</span><InputDate class="@InputClass(() => ReceiveForm.EndsOn)" @bind-Value="ReceiveForm.EndsOn" /><ValidationMessage class="field-validation" For="() => ReceiveForm.EndsOn" /></label>
-                <label class="field wide"><span>تعليمات الروشتة</span><InputTextArea class="@TextAreaClass(() => ReceiveForm.Instructions)" @bind-Value="ReceiveForm.Instructions" /><ValidationMessage class="field-validation" For="() => ReceiveForm.Instructions" /></label>
-            </div>
-
-            <div class="panel-heading">
-                <div>
-                    <h2>مواعيد الجرعات</h2>
-                    <p>كل موعد يتحول إلى تنبيه يومي قابل للتنفيذ.</p>
                 </div>
-                <button class="btn" type="button" @onclick="AddDoseLine">إضافة موعد</button>
-            </div>
+            </section>
 
-            <div class="contacts-editor">
-                @for (var i = 0; i < ReceiveForm.Doses.Count; i++)
-                {
-                    var index = i;
-                    <div class="contact-editor-row medication-dose-row">
-                        <label class="field"><span>الوقت</span><InputText class="@InputClass(() => ReceiveForm.Doses[index].Time)" @bind-Value="ReceiveForm.Doses[index].Time" /><ValidationMessage class="field-validation" For="() => ReceiveForm.Doses[index].Time" /></label>
-                        <label class="field"><span>الكمية</span><InputNumber class="@InputClass(() => ReceiveForm.Doses[index].Quantity)" @bind-Value="ReceiveForm.Doses[index].Quantity" /><ValidationMessage class="field-validation" For="() => ReceiveForm.Doses[index].Quantity" /></label>
-                        <label class="field">
-                            <span>التوقيت</span>
-                            <InputSelect class="select" @bind-Value="ReceiveForm.Doses[index].Timing">
-                                <option value="BeforeMeal">قبل الأكل</option>
-                                <option value="WithMeal">مع الأكل</option>
-                                <option value="AfterMeal">بعد الأكل</option>
-                                <option value="AnyTime">أي وقت</option>
-                            </InputSelect>
-                        </label>
-                        <button class="btn danger-link" type="button" @onclick="() => RemoveDoseLine(index)">حذف</button>
+            <section class="fc-card">
+                <div class="fc-card-header">
+                    <div>
+                        <h2>الجرعات القادمة</h2>
+                        <p>أقرب الجرعات حسب ترتيب اليوم.</p>
                     </div>
-                }
-            </div>
+                    <span class="fc-counter">@Model.TodayDoses.Count</span>
+                </div>
 
-            <footer class="form-actions">
+                <div class="fc-compact-list">
+                    @foreach (var dose in Model.TodayDoses.Take(5))
+                    {
+                        <div class="fc-list-row">
+                            <time>@dose.Time</time>
+                            <div>
+                                <strong>@dose.Resident</strong>
+                                <span>@dose.Medicine</span>
+                            </div>
+                            <small>@dose.Dose</small>
+                        </div>
+                    }
+                </div>
+            </section>
+
+            <section class="fc-card">
+                <div class="fc-card-header">
+                    <div>
+                        <h2>أدوية تحتاج متابعة</h2>
+                        <p>خطط علاج ذات رصيد منخفض أو غير كاف.</p>
+                    </div>
+                    <span class="fc-counter">@Model.LowStockCount</span>
+                </div>
+
+                <div class="fc-compact-list">
+                    @foreach (var plan in Model.Plans.Where(plan => plan.State == "danger").Take(5))
+                    {
+                        <div class="fc-list-row">
+                            <div class="fc-avatar">@Initials(plan.Resident)</div>
+                            <div>
+                                <strong>@plan.Medicine</strong>
+                                <span>@plan.Resident</span>
+                            </div>
+                            <small>@plan.Stock</small>
+                        </div>
+                    }
+
+                    @if (!Model.Plans.Any(plan => plan.State == "danger"))
+                    {
+                        <div class="fc-empty-state">لا توجد خطط تحتاج متابعة الآن.</div>
+                    }
+                </div>
+            </section>
+
+            <section class="fc-card">
+                <div class="fc-card-header">
+                    <div>
+                        <h2>الصلاحية والمخزون</h2>
+                        <p>الدفعات القريبة من الانتهاء أو المنتهية.</p>
+                    </div>
+                    <span class="fc-counter">@Model.Batches.Count(batch => batch.State is "warn" or "danger")</span>
+                </div>
+
+                <div class="fc-compact-list">
+                    @foreach (var batch in Model.Batches.Where(batch => batch.State is "warn" or "danger").Take(5))
+                    {
+                        <div class="fc-list-row">
+                            <div class="fc-state-dot @StateClass(batch.State)"></div>
+                            <div>
+                                <strong>@batch.Medicine</strong>
+                                <span>@batch.Resident</span>
+                            </div>
+                            <small>@batch.ExpiresOn</small>
+                        </div>
+                    }
+
+                    @if (!Model.Batches.Any(batch => batch.State is "warn" or "danger"))
+                    {
+                        <div class="fc-empty-state">لا توجد دفعات منتهية أو قريبة الانتهاء.</div>
+                    }
+                </div>
+            </section>
+        </div>
+
+        <div class="fc-main-grid">
+            <section class="fc-card fc-table-card">
+                <div class="fc-card-header fc-table-header">
+                    <div>
+                        <h2>جدول الأدوية والجرعات</h2>
+                        <p>كل جرعة مرتبطة بموعد واضح وحالة تنفيذ، ويتم الخصم من أقرب رصيد صالح عند التسجيل.</p>
+                    </div>
+                    <span class="fc-counter">@Model.TodayDoses.Count</span>
+                </div>
+
+                <div class="fc-table-scroll">
+                    <table class="fc-table">
+                        <thead>
+                            <tr>
+                                <th>الموعد</th>
+                                <th>النزيل</th>
+                                <th>الدواء والجرعة</th>
+                                <th>التعليمات</th>
+                                <th>الحالة</th>
+                                <th>تنفيذ</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var dose in Model.TodayDoses)
+                            {
+                                <tr>
+                                    <td class="fc-time-cell">@dose.Time</td>
+                                    <td>
+                                        <div class="fc-person-cell">
+                                            <div class="fc-avatar">@Initials(dose.Resident)</div>
+                                            <strong>@dose.Resident</strong>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <strong>@dose.Medicine</strong>
+                                        <span class="fc-muted-block">@dose.Dose</span>
+                                    </td>
+                                    <td>@dose.Instructions</td>
+                                    <td>
+                                        <span class="fc-status-pill @StateClass(dose.State)">@dose.Status</span>
+                                    </td>
+                                    <td>
+                                        <div class="fc-row-actions">
+                                            <button type="button" class="fc-mini-btn fc-mini-primary" disabled="@(!dose.CanGive)" @onclick="() => GiveDose(dose.Id)">تم</button>
+                                            <button type="button" class="fc-mini-btn" @onclick="() => MissDose(dose.Id)">فات</button>
+                                            <button type="button" class="fc-mini-btn" @onclick="() => SkipDose(dose.Id)">تخطي</button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <aside class="fc-card">
+                <div class="fc-card-header">
+                    <div>
+                        <h2>مخزون الأدوية</h2>
+                        <p>أقرب الدفعات المتاحة حسب الصلاحية.</p>
+                    </div>
+                    <span class="fc-counter">@Model.Batches.Count</span>
+                </div>
+
+                <div class="fc-stock-list">
+                    @foreach (var batch in Model.Batches.Take(10))
+                    {
+                        <div class="fc-stock-row">
+                            <div>
+                                <strong>@batch.Medicine</strong>
+                                <span>@batch.Resident</span>
+                            </div>
+                            <div class="fc-stock-meta">
+                                <b>@batch.QuantityRemaining</b>
+                                <small>@batch.ExpiresOn</small>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </aside>
+        </div>
+
+        <div class="fc-bottom-grid">
+            <section class="fc-card">
+                <div class="fc-card-header">
+                    <div>
+                        <h2>تعليمات مهمة</h2>
+                        <p>قواعد تشغيلية ثابتة لفريق الرعاية.</p>
+                    </div>
+                </div>
+
+                <ul class="fc-note-list">
+                    <li>يجب مراجعة اسم النزيل والدواء قبل تسجيل إعطاء الجرعة.</li>
+                    <li>لا يتم استخدام دواء منتهي الصلاحية أو بدون رصيد كاف.</li>
+                    <li>يتم توثيق الجرعات الفائتة أو المتخطاة مع سبب واضح.</li>
+                    <li>أي تعديل على خطة العلاج يجب أن يكون مرتبطًا بروشتة أو توجيه طبي.</li>
+                </ul>
+            </section>
+
+            <section class="fc-card">
+                <div class="fc-card-header">
+                    <div>
+                        <h2>وسائل الاستخدام</h2>
+                        <p>توزيع سريع حسب نوع الدواء.</p>
+                    </div>
+                </div>
+
+                <div class="fc-method-grid">
+                    <div><strong>@CountDoseTextContains("قرص")</strong><span>أقراص</span></div>
+                    <div><strong>@CountDoseTextContains("كبسولة")</strong><span>كبسولات</span></div>
+                    <div><strong>@CountDoseTextContains("مل")</strong><span>شراب</span></div>
+                    <div><strong>@CountDoseTextContains("قطرة")</strong><span>قطرات</span></div>
+                </div>
+            </section>
+
+            <section class="fc-card">
+                <div class="fc-card-header">
+                    <div>
+                        <h2>تقارير سريعة</h2>
+                        <p>مؤشرات مختصرة من بيانات اليوم.</p>
+                    </div>
+                </div>
+
+                <div class="fc-report-grid">
+                    <div><strong>@Model.TodayDoses.Count</strong><span>جرعات اليوم</span></div>
+                    <div><strong>@Model.Batches.Count</strong><span>دفعات الدواء</span></div>
+                    <div><strong>@Model.Plans.Count</strong><span>خطط علاج</span></div>
+                    <div><strong>@Model.Alerts.Count</strong><span>تنبيهات</span></div>
+                </div>
+            </section>
+
+            <section class="fc-card">
+                <div class="fc-card-header">
+                    <div>
+                        <h2>إجراءات سريعة</h2>
+                        <p>اختصارات تشغيلية للصفحة.</p>
+                    </div>
+                </div>
+
+                <div class="fc-action-grid">
+                    <button type="button" @onclick="OpenReceiveForm">إضافة دواء جديد</button>
+                    <button type="button" @onclick="Load">تحديث البيانات</button>
+                    <a href="/residents">فتح النزلاء</a>
+                    <a href="/reports">التقارير</a>
+                </div>
+            </section>
+        </div>
+
+        @if (IsReceiveFormOpen)
+        {
+            <div class="fc-med-modal-backdrop" role="presentation" @onclick="CloseReceiveForm">
+                <section id="receive-medicine-form" class="fc-med-modal fc-med-receive-modal" role="dialog" aria-modal="true" aria-labelledby="receive-medicine-title" @onclick:stopPropagation="true">
+            <div class="fc-card-header fc-modal-titlebar">
+                <div>
+                    <h2 id="receive-medicine-title">استلام دواء من النزيل / الأسرة</h2>
+                    <p>سجل الكمية المستلمة، الصلاحية، بيانات الروشتة، ثم يتم إنشاء خطة الجرعات تلقائيًا.</p>
+                </div>
                 @if (EditingPlanId.HasValue)
                 {
-                    <button class="btn" type="button" @onclick="CancelEdit">إلغاء التعديل</button>
+                    <span class="fc-edit-mode">وضع تعديل خطة علاج</span>
                 }
-                <button class="btn primary" type="submit">@(EditingPlanId.HasValue ? "حفظ تعديل الخطة" : "حفظ الاستلام وإنشاء التنبيهات")</button>
-            </footer>
-        </EditForm>
-        </section>
-    </section>
-
-    <section class="medication-data-grid">
-        <div class="panel medication-panel medication-plans">
-            <h2>خطط العلاج النشطة</h2>
-            <div class="table-scroll medication-plans-table">
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>النزيل</th>
-                        <th>الدواء</th>
-                        <th>التعليمات</th>
-                        <th>الجرعات</th>
-                        <th>الرصيد</th>
-                        <th>الفترة</th>
-                        <th>الإجراء</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var plan in Model.Plans)
-                    {
-                        <tr>
-                            <td>@plan.Resident</td>
-                            <td>@plan.Medicine</td>
-                            <td>@plan.Instructions</td>
-                            <td>@plan.Schedule</td>
-                            <td><span class="status @plan.State">@plan.Stock</span></td>
-                            <td>@plan.Period</td>
-                            <td>
-                                <button class="btn" type="button" @onclick="() => StartEditPlan(plan.Id)">تعديل</button>
-                                <button class="btn danger-link" type="button" @onclick="() => DeletePlan(plan.Id)">حذف</button>
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
+                <button class="fc-mini-btn fc-modal-close" type="button" aria-label="إغلاق" @onclick="CloseReceiveForm">×</button>
             </div>
-        </div>
 
-        <div class="panel medication-panel medication-batches">
-            <h2>دفعات الدواء المستلمة</h2>
-            <div class="table-scroll medication-batches-table">
-            <table class="data-table">
-                <thead><tr><th>النزيل</th><th>الدواء</th><th>المتبقي</th><th>الصلاحية</th><th>المستلم بالدار</th></tr></thead>
-                <tbody>
-                    @foreach (var batch in Model.Batches)
+            <EditForm EditContext="@ReceiveEditContext" OnSubmit="@HandleReceiveSubmit">
+                <div class="fc-form-grid">
+                    <div class="fc-field">
+                        <label>النزيل</label>
+                        <InputSelect class="@SelectClass(() => ReceiveForm.ResidentId)" @bind-Value="ReceiveForm.ResidentId">
+                            <option value="">اختر النزيل</option>
+                            @foreach (var resident in Model.Residents)
+                            {
+                                <option value="@resident.Id">@resident.Name</option>
+                            }
+                        </InputSelect>
+                        <ValidationMessage For="@(() => ReceiveForm.ResidentId)" />
+                    </div>
+
+                    <div class="fc-field">
+                        <label>اسم الدواء</label>
+                        <InputText class="@InputClass(() => ReceiveForm.MedicineName)" @bind-Value="ReceiveForm.MedicineName" list="medicine-options" />
+                        <datalist id="medicine-options">
+                            @foreach (var medicine in Model.Medicines)
+                            {
+                                <option value="@medicine.Name"></option>
+                            }
+                        </datalist>
+                        <ValidationMessage For="@(() => ReceiveForm.MedicineName)" />
+                    </div>
+
+                    <div class="fc-field">
+                        <label>التركيز</label>
+                        <InputText class="input" @bind-Value="ReceiveForm.Strength" />
+                    </div>
+
+                    <div class="fc-field">
+                        <label>الشكل</label>
+                        <InputText class="@InputClass(() => ReceiveForm.Form)" @bind-Value="ReceiveForm.Form" />
+                        <ValidationMessage For="@(() => ReceiveForm.Form)" />
+                    </div>
+
+                    <div class="fc-field">
+                        <label>الكمية المستلمة</label>
+                        <InputNumber class="@InputClass(() => ReceiveForm.QuantityReceived)" @bind-Value="ReceiveForm.QuantityReceived" />
+                        <ValidationMessage For="@(() => ReceiveForm.QuantityReceived)" />
+                    </div>
+
+                    <div class="fc-field">
+                        <label>تاريخ الاستلام</label>
+                        <InputDate class="@InputClass(() => ReceiveForm.ReceivedOn)" @bind-Value="ReceiveForm.ReceivedOn" />
+                        <ValidationMessage For="@(() => ReceiveForm.ReceivedOn)" />
+                    </div>
+
+                    <div class="fc-field">
+                        <label>تاريخ الصلاحية</label>
+                        <InputDate class="@InputClass(() => ReceiveForm.ExpiresOn)" @bind-Value="ReceiveForm.ExpiresOn" />
+                        <ValidationMessage For="@(() => ReceiveForm.ExpiresOn)" />
+                    </div>
+
+                    <div class="fc-field">
+                        <label>المُسلِّم</label>
+                        <InputText class="@InputClass(() => ReceiveForm.ReceivedFrom)" @bind-Value="ReceiveForm.ReceivedFrom" />
+                        <ValidationMessage For="@(() => ReceiveForm.ReceivedFrom)" />
+                    </div>
+
+                    <div class="fc-field">
+                        <label>المستلم بالدار</label>
+                        <InputText class="@InputClass(() => ReceiveForm.ReceivedBy)" @bind-Value="ReceiveForm.ReceivedBy" />
+                        <ValidationMessage For="@(() => ReceiveForm.ReceivedBy)" />
+                    </div>
+
+                    <div class="fc-field">
+                        <label>الطبيب</label>
+                        <InputText class="@InputClass(() => ReceiveForm.PrescribedBy)" @bind-Value="ReceiveForm.PrescribedBy" />
+                        <ValidationMessage For="@(() => ReceiveForm.PrescribedBy)" />
+                    </div>
+
+                    <div class="fc-field">
+                        <label>رقم / مرجع الروشتة</label>
+                        <InputText class="@InputClass(() => ReceiveForm.PrescriptionReference)" @bind-Value="ReceiveForm.PrescriptionReference" />
+                        <ValidationMessage For="@(() => ReceiveForm.PrescriptionReference)" />
+                    </div>
+
+                    <div class="fc-field">
+                        <label>تاريخ الروشتة</label>
+                        <InputDate class="@InputClass(() => ReceiveForm.PrescriptionDate)" @bind-Value="ReceiveForm.PrescriptionDate" />
+                        <ValidationMessage For="@(() => ReceiveForm.PrescriptionDate)" />
+                    </div>
+
+                    <div class="fc-field">
+                        <label>بداية الخطة</label>
+                        <InputDate class="input" @bind-Value="ReceiveForm.StartsOn" />
+                    </div>
+
+                    <div class="fc-field">
+                        <label>نهاية الخطة</label>
+                        <InputDate class="@InputClass(() => ReceiveForm.EndsOn)" @bind-Value="ReceiveForm.EndsOn" />
+                        <ValidationMessage For="@(() => ReceiveForm.EndsOn)" />
+                    </div>
+
+                    <div class="fc-field fc-field-wide">
+                        <label>تعليمات الروشتة</label>
+                        <InputTextArea class="@TextAreaClass(() => ReceiveForm.Instructions)" @bind-Value="ReceiveForm.Instructions" />
+                        <ValidationMessage For="@(() => ReceiveForm.Instructions)" />
+                    </div>
+                </div>
+
+                <div class="fc-dose-editor">
+                    <div class="fc-dose-editor-head">
+                        <div>
+                            <h3>مواعيد الجرعات</h3>
+                            <p>كل موعد يتحول إلى تنبيه يومي قابل للتنفيذ.</p>
+                        </div>
+                        <button type="button" class="fc-btn fc-btn-light" @onclick="AddDoseLine">إضافة موعد</button>
+                    </div>
+
+                    @for (var i = 0; i < ReceiveForm.Doses.Count; i++)
                     {
-                        <tr><td>@batch.Resident</td><td>@batch.Medicine</td><td><span class="status @batch.State">@batch.QuantityRemaining</span></td><td>@batch.ExpiresOn</td><td>@batch.ReceivedBy</td></tr>
+                        var index = i;
+                        <div class="fc-dose-line">
+                            <div class="fc-field">
+                                <label>الوقت</label>
+                                <InputText class="@InputClass(() => ReceiveForm.Doses[index].Time)" @bind-Value="ReceiveForm.Doses[index].Time" />
+                                <ValidationMessage For="@(() => ReceiveForm.Doses[index].Time)" />
+                            </div>
+
+                            <div class="fc-field">
+                                <label>الكمية</label>
+                                <InputNumber class="@InputClass(() => ReceiveForm.Doses[index].Quantity)" @bind-Value="ReceiveForm.Doses[index].Quantity" />
+                                <ValidationMessage For="@(() => ReceiveForm.Doses[index].Quantity)" />
+                            </div>
+
+                            <div class="fc-field">
+                                <label>التوقيت</label>
+                                <InputSelect class="select" @bind-Value="ReceiveForm.Doses[index].Timing">
+                                    <option value="BeforeMeal">قبل الأكل</option>
+                                    <option value="WithMeal">مع الأكل</option>
+                                    <option value="AfterMeal">بعد الأكل</option>
+                                    <option value="AnyTime">أي وقت</option>
+                                </InputSelect>
+                            </div>
+
+                            <button type="button" class="fc-mini-btn fc-mini-danger" @onclick="() => RemoveDoseLine(index)">حذف</button>
+                        </div>
                     }
-                </tbody>
-            </table>
+                </div>
+
+                <div class="fc-form-actions">
+                    @if (EditingPlanId.HasValue)
+                    {
+                        <button type="button" class="fc-btn fc-btn-light" @onclick="CancelEdit">إلغاء التعديل</button>
+                    }
+                    <button type="submit" class="fc-btn fc-btn-primary">@(EditingPlanId.HasValue ? "حفظ تعديل الخطة" : "حفظ الاستلام وإنشاء التنبيهات")</button>
+                </div>
+            </EditForm>
+                </section>
             </div>
+        }
+
+        <div class="fc-two-col-grid">
+            <section class="fc-card fc-table-card">
+                <div class="fc-card-header fc-table-header">
+                    <div>
+                        <h2>خطط العلاج النشطة</h2>
+                        <p>جميع الخطط المرتبطة بالنزلاء مع الرصيد والفترة والجرعات.</p>
+                    </div>
+                    <span class="fc-counter">@Model.Plans.Count</span>
+                </div>
+
+                <div class="fc-table-scroll">
+                    <table class="fc-table">
+                        <thead>
+                            <tr>
+                                <th>النزيل</th>
+                                <th>الدواء</th>
+                                <th>التعليمات</th>
+                                <th>الجرعات</th>
+                                <th>الرصيد</th>
+                                <th>الفترة</th>
+                                <th>الإجراء</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var plan in Model.Plans)
+                            {
+                                <tr>
+                                    <td>@plan.Resident</td>
+                                    <td><strong>@plan.Medicine</strong></td>
+                                    <td>@plan.Instructions</td>
+                                    <td>@plan.Schedule</td>
+                                    <td><span class="fc-status-pill @StateClass(plan.State)">@plan.Stock</span></td>
+                                    <td>@plan.Period</td>
+                                    <td>
+                                        <div class="fc-row-actions">
+                                            <button type="button" class="fc-mini-btn" @onclick="() => StartEditPlan(plan.Id)">تعديل</button>
+                                            <button type="button" class="fc-mini-btn fc-mini-danger" @onclick="() => DeletePlan(plan.Id)">حذف</button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="fc-card fc-table-card">
+                <div class="fc-card-header fc-table-header">
+                    <div>
+                        <h2>دفعات الدواء المستلمة</h2>
+                        <p>تفاصيل الكميات المستلمة والمتبقية وتاريخ الصلاحية.</p>
+                    </div>
+                    <span class="fc-counter">@Model.Batches.Count</span>
+                </div>
+
+                <div class="fc-table-scroll">
+                    <table class="fc-table">
+                        <thead>
+                            <tr>
+                                <th>النزيل</th>
+                                <th>الدواء</th>
+                                <th>المستلم</th>
+                                <th>المتبقي</th>
+                                <th>الصلاحية</th>
+                                <th>المستلم بالدار</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var batch in Model.Batches)
+                            {
+                                <tr>
+                                    <td>@batch.Resident</td>
+                                    <td><strong>@batch.Medicine</strong></td>
+                                    <td>@batch.QuantityReceived</td>
+                                    <td><span class="fc-status-pill @StateClass(batch.State)">@batch.QuantityRemaining</span></td>
+                                    <td>@batch.ExpiresOn</td>
+                                    <td>@batch.ReceivedBy</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
         </div>
     </section>
-    </div>
 }
 
 @code {
-    [Parameter] public Guid? ResidentId { get; set; }
+    [Parameter]
+    public Guid? ResidentId { get; set; }
+
     private MedicationOperationsViewModel? Model;
     private ReceiveMedicineForm ReceiveForm { get; set; } = new();
     private EditContext ReceiveEditContext { get; set; } = default!;
     private ValidationMessageStore ReceiveValidationMessages { get; set; } = default!;
     private Guid? EditingPlanId { get; set; }
+    private bool IsReceiveFormOpen { get; set; }
     private string? Message;
     private bool MessageIsError;
 
@@ -252,6 +627,11 @@ else
         Model = await MedicationService.GetWorkspaceAsync(ResidentId);
         ReceiveForm.ResidentId = ResidentId?.ToString() ?? ReceiveForm.ResidentId;
         EnsureDoseLines();
+    }
+
+    private async Task HandleReceiveSubmit(EditContext _)
+    {
+        await SubmitReceiveMedicine();
     }
 
     private async Task SubmitReceiveMedicine()
@@ -291,6 +671,7 @@ else
         MessageIsError = false;
         ReceiveForm = new ReceiveMedicineForm();
         InitializeReceiveEditContext();
+        IsReceiveFormOpen = false;
         await Load();
     }
 
@@ -307,34 +688,75 @@ else
         EditingPlanId = null;
         ReceiveForm = new ReceiveMedicineForm();
         InitializeReceiveEditContext();
+        IsReceiveFormOpen = false;
         await Load();
     }
 
     private async Task GiveDose(Guid doseId)
     {
-        await MedicationService.MarkDoseGivenAsync(doseId, "ممرضة الدار");
-        Message = "تم تسجيل إعطاء الجرعة وخصمها من الرصيد.";
+        try
+        {
+            await MedicationService.MarkDoseGivenAsync(doseId, "ممرضة الدار");
+            Message = "تم تسجيل إعطاء الجرعة وخصمها من الرصيد.";
+            MessageIsError = false;
+        }
+        catch (Exception ex)
+        {
+            Message = ex.Message;
+            MessageIsError = true;
+        }
+
         await Load();
     }
 
     private async Task MissDose(Guid doseId)
     {
-        await MedicationService.MarkDoseMissedAsync(doseId, "لم يتم إعطاء الجرعة في موعدها");
-        Message = "تم تسجيل الجرعة كفائتة.";
+        try
+        {
+            await MedicationService.MarkDoseMissedAsync(doseId, "لم يتم إعطاء الجرعة في موعدها");
+            Message = "تم تسجيل الجرعة كفائتة.";
+            MessageIsError = false;
+        }
+        catch (Exception ex)
+        {
+            Message = ex.Message;
+            MessageIsError = true;
+        }
+
         await Load();
     }
 
     private async Task SkipDose(Guid doseId)
     {
-        await MedicationService.SkipDoseAsync(doseId, "تم التخطي بتوجيه طبي/تمريضي");
-        Message = "تم تخطي الجرعة.";
+        try
+        {
+            await MedicationService.SkipDoseAsync(doseId, "تم التخطي بتوجيه طبي/تمريضي");
+            Message = "تم تخطي الجرعة.";
+            MessageIsError = false;
+        }
+        catch (Exception ex)
+        {
+            Message = ex.Message;
+            MessageIsError = true;
+        }
+
         await Load();
     }
 
     private async Task DeletePlan(Guid planId)
     {
-        await MedicationService.DeletePlanAsync(planId, "تم حذف الخطة لأنها أُدخلت بالخطأ");
-        Message = "تم حذف خطة العلاج من العرض مع الاحتفاظ بسجل الحذف.";
+        try
+        {
+            await MedicationService.DeletePlanAsync(planId, "تم حذف الخطة لأنها أُدخلت بالخطأ");
+            Message = "تم حذف خطة العلاج من العرض مع الاحتفاظ بسجل الحذف.";
+            MessageIsError = false;
+        }
+        catch (Exception ex)
+        {
+            Message = ex.Message;
+            MessageIsError = true;
+        }
+
         await Load();
     }
 
@@ -345,6 +767,7 @@ else
         ReceiveForm = ToReceiveForm(edit.Medicine);
         InitializeReceiveEditContext();
         EnsureDoseLines();
+        IsReceiveFormOpen = true;
         Message = "تم تحميل خطة العلاج للتعديل.";
         MessageIsError = false;
     }
@@ -354,6 +777,7 @@ else
         EditingPlanId = null;
         ReceiveForm = new ReceiveMedicineForm();
         InitializeReceiveEditContext();
+        IsReceiveFormOpen = false;
         await Load();
         Message = "تم إلغاء وضع التعديل.";
         MessageIsError = false;
@@ -517,27 +941,83 @@ else
         }
     }
 
-    private void AddValidationMessage<TField>(Expression<Func<TField>> accessor, string message)
+    private void AddValidationMessage(Expression<Func<object?>> accessor, string message)
     {
         ReceiveValidationMessages.Add(FieldIdentifier.Create(accessor), message);
     }
 
-    private string InputClass<TField>(Expression<Func<TField>> accessor)
+    private string InputClass(Expression<Func<object?>> accessor)
     {
         var hasErrors = ReceiveEditContext.GetValidationMessages(FieldIdentifier.Create(accessor)).Any();
         return hasErrors ? "input input-invalid" : "input";
     }
 
-    private string SelectClass<TField>(Expression<Func<TField>> accessor)
+    private string SelectClass(Expression<Func<object?>> accessor)
     {
         var hasErrors = ReceiveEditContext.GetValidationMessages(FieldIdentifier.Create(accessor)).Any();
         return hasErrors ? "select input-invalid" : "select";
     }
 
-    private string TextAreaClass<TField>(Expression<Func<TField>> accessor)
+    private string TextAreaClass(Expression<Func<object?>> accessor)
     {
         var hasErrors = ReceiveEditContext.GetValidationMessages(FieldIdentifier.Create(accessor)).Any();
         return hasErrors ? "input textarea input-invalid" : "input textarea";
+    }
+
+    private string AlertClass(string? label, string? value)
+    {
+        if (!int.TryParse(value, out var count) || count <= 0)
+        {
+            return "is-safe";
+        }
+
+        var normalizedLabel = label ?? string.Empty;
+        return normalizedLabel.Contains("متأخرة", StringComparison.OrdinalIgnoreCase)
+            || normalizedLabel.Contains("معلقة", StringComparison.OrdinalIgnoreCase)
+            || normalizedLabel.Contains("منتهية", StringComparison.OrdinalIgnoreCase)
+            || normalizedLabel.Contains("منخفض", StringComparison.OrdinalIgnoreCase)
+            ? "is-danger"
+            : "is-warning";
+    }
+
+    private string StateClass(string? state) => state switch
+    {
+        "danger" => "is-danger",
+        "warn" => "is-warning",
+        _ => "is-safe"
+    };
+
+    private string Initials(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return "ن";
+        }
+
+        var parts = value.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return string.Concat(parts.Take(2).Select(part => part[0])).Trim();
+    }
+
+    private int CountDoseTextContains(string term)
+    {
+        return Model?.TodayDoses.Count(dose => dose.Dose.Contains(term, StringComparison.OrdinalIgnoreCase)) ?? 0;
+    }
+
+    private void OpenReceiveForm()
+    {
+        if (!EditingPlanId.HasValue)
+        {
+            EnsureDoseLines();
+        }
+
+        IsReceiveFormOpen = true;
+        Message = null;
+        MessageIsError = false;
+    }
+
+    private void CloseReceiveForm()
+    {
+        IsReceiveFormOpen = false;
     }
 
     private static readonly IReadOnlyDictionary<string, string> MedicationValidationMessages = new Dictionary<string, string>

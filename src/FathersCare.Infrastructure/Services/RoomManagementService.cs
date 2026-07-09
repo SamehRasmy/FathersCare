@@ -1,4 +1,5 @@
 using FathersCare.Application.Abstractions;
+using FathersCare.Domain.Medications;
 using FathersCare.Domain.Notifications;
 using FathersCare.Domain.Residents;
 using FathersCare.Domain.Rooms;
@@ -55,6 +56,30 @@ public sealed class RoomManagementService(AppDbContext db) : IRoomManagementServ
             .OrderBy(resident => resident.FullName)
             .Select(resident => new RoomResidentOptionDto(resident.Id, resident.FullName, resident.CurrentRoomId))
             .ToListAsync(cancellationToken);
+        var activeResidentIds = residents.Select(resident => resident.Id).ToList();
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        var nowTime = TimeOnly.FromDateTime(DateTime.Now);
+        var delayedMedicationCountByResident = await (
+            from dose in db.DoseAdministrations.AsNoTracking()
+            join schedule in db.MedicineSchedules.AsNoTracking() on dose.MedicineScheduleId equals schedule.Id
+            join residentMedicine in db.ResidentMedicines.AsNoTracking() on schedule.ResidentMedicineId equals residentMedicine.Id
+            where activeResidentIds.Contains(residentMedicine.ResidentId)
+                && dose.DoseDate == today
+                && !dose.IsDeleted
+                && !schedule.IsDeleted
+                && !residentMedicine.IsDeleted
+                && residentMedicine.IsActive
+                && dose.Status == DoseAdministrationStatus.Scheduled
+                && schedule.DoseTime < nowTime
+                && (residentMedicine.StartsOn == null || residentMedicine.StartsOn <= today)
+                && (residentMedicine.EndsOn == null || residentMedicine.EndsOn >= today)
+            group dose by residentMedicine.ResidentId into residentDoses
+            select new
+            {
+                ResidentId = residentDoses.Key,
+                Count = residentDoses.Count()
+            })
+            .ToDictionaryAsync(item => item.ResidentId, item => item.Count, cancellationToken);
 
         var maintenanceSource = await db.RoomMaintenanceRequests.AsNoTracking()
             .Where(request => !request.IsDeleted && request.Status != RoomMaintenanceStatus.Completed && request.Status != RoomMaintenanceStatus.Cancelled)
@@ -105,6 +130,7 @@ public sealed class RoomManagementService(AppDbContext db) : IRoomManagementServ
             var occupied = roomResidents.Count;
             var available = Math.Max(0, room.Capacity - occupied);
             var roomMaintenance = maintenanceByRoom.GetValueOrDefault(room.Id) ?? [];
+            var delayedMedicationCount = roomResidents.Sum(resident => delayedMedicationCountByResident.GetValueOrDefault(resident.Id));
 
             return new RoomCardDto(
                 room.Id,
@@ -114,8 +140,9 @@ public sealed class RoomManagementService(AppDbContext db) : IRoomManagementServ
                 occupied,
                 available,
                 $"{occupied} / {room.Capacity}",
-                RoomState(occupied, room.Capacity, roomMaintenance),
+                RoomState(occupied, room.Capacity, roomMaintenance, delayedMedicationCount > 0),
                 MaintenanceState(roomMaintenance),
+                delayedMedicationCount,
                 roomResidents);
         }).ToList();
 
@@ -481,8 +508,13 @@ public sealed class RoomManagementService(AppDbContext db) : IRoomManagementServ
     private static string RoomLabel(string number, string? floor) =>
         string.IsNullOrWhiteSpace(floor) ? number : $"{number} - {floor}";
 
-    private static string RoomState(int occupied, int capacity, IReadOnlyList<RoomMaintenanceRequest> maintenance)
+    private static string RoomState(int occupied, int capacity, IReadOnlyList<RoomMaintenanceRequest> maintenance, bool hasDelayedMedication)
     {
+        if (hasDelayedMedication)
+        {
+            return "danger";
+        }
+
         if (maintenance.Any(item => item.Priority == RoomMaintenancePriority.Urgent))
         {
             return "danger";
@@ -495,7 +527,7 @@ public sealed class RoomManagementService(AppDbContext db) : IRoomManagementServ
 
         if (occupied >= capacity)
         {
-            return "danger";
+            return "teal";
         }
 
         return occupied == 0 ? "blue" : "";

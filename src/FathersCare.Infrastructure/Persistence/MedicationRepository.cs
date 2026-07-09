@@ -54,12 +54,12 @@ public sealed class MedicationRepository(AppDbContext db) : IMedicationRepositor
         CancellationToken cancellationToken = default)
     {
         var query = db.DoseAdministrations.AsNoTracking().Where(d => !d.IsDeleted);
-        
+
         if (residentMedicineId.HasValue)
         {
             query = query.Where(d => d.MedicineSchedule!.ResidentMedicineId == residentMedicineId.Value);
         }
-        
+
         if (date.HasValue)
         {
             query = query.Where(d => d.DoseDate == date.Value);

@@ -11,7 +11,7 @@ public sealed class GetDoseAdministrationsQueryHandler(IMedicationRepository rep
             request.ResidentMedicineId,
             request.Date,
             cancellationToken);
-        
+
         return doses.Select(d => new DoseAdministrationDto(
             d.Id,
             d.MedicineScheduleId,

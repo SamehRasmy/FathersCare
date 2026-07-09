@@ -1,98 +1,710 @@
 @page "/"
+@rendermode InteractiveServer
 @using FathersCare.Application.Abstractions
+@using System.Globalization
+@using System.Security.Claims
 @inject ICareOverviewService CareOverview
+@inject IRoomManagementService RoomManagement
+@inject IResidentManagementService ResidentManagement
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject UiText T
+@implements IAsyncDisposable
 
 <PageTitle>لوحة القيادة - Fathers Care</PageTitle>
 
-@if (Model is null)
+<HeadContent>
+    <link rel="stylesheet" href="/css/fathers-home.css" />
+</HeadContent>
+
+@if (Model is null || RoomsModel is null)
 {
-    <p>جاري تحميل البيانات...</p>
+    <div class="fc-home-loading-shell">
+        <div class="fc-home-loading-card">
+            <div class="fc-home-spinner"></div>
+            <strong>جاري تجهيز لوحة القيادة...</strong>
+            <span>يتم تحميل مؤشرات الرعاية، خريطة الغرف، الجرعات، والتنبيهات التشغيلية.</span>
+        </div>
+    </div>
 }
 else
 {
-    <section class="page-title">
-        <div>
-            <h1>مرحبًا، الأم مديرة الدار</h1>
-            <p>نظرة شاملة على دار القديسين استفانوس - المعادي</p>
-        </div>
-        <div class="toolbar">
-            <button class="btn">عرض اليوم</button>
-            <button class="btn primary">تسجيل نشاط جديد</button>
-        </div>
-    </section>
+    <div class="fc-home-page">
+        <section class="fc-home-command integrated-shell premium">
+            <div class="fc-home-command-main">
+                <div class="fc-home-command-toolbar ultra">
+                    <div class="fc-home-inline-user-card">
+                        <div class="fc-home-inline-avatar">@CurrentUserInitial</div>
+                        <div class="fc-home-inline-user-copy">
+                            <strong>@CurrentUserName</strong>
+                            <span>@CurrentUserRole</span>
+                            <small>متصل الآن</small>
+                        </div>
+                    </div>
 
-    <div class="dashboard-grid">
-        <section class="stats-grid">
-            @foreach (var stat in Model.Stats)
-            {
-                <div class="stat-card @stat.Color"><div class="stat-icon">@stat.Icon</div><div><span>@stat.Title</span><strong>@stat.Value</strong><small>@stat.Caption</small></div></div>
-            }
-        </section>
+                    <div class="fc-home-top-widgets">
+                        <div class="fc-home-header-pill">
+                            <span>اليوم</span>
+                            <strong>@CurrentDateText</strong>
+                        </div>
+                        <div class="fc-home-header-pill">
+                            <span>الوقت الحالي</span>
+                            <strong>@CurrentTimeText</strong>
+                        </div>
+                        <div class="fc-home-header-lang">
+                            <LanguageSwitcher />
+                        </div>
+                    </div>
 
-        <section class="priority-row">
-            @foreach (var dose in Model.PriorityDoses)
-            {
-                <div class="dose-card">
-                    <span class="status @dose.State">@dose.Status</span>
-                    <strong>@dose.Time</strong>
-                    <h3>@dose.Resident</h3>
-                    <p>@dose.Medicine - @dose.Dose</p>
-                    <table class="data-table"><tbody><tr><td>طريقة الاستخدام</td><td>@dose.Method</td></tr><tr><td>آخر جرعة</td><td>@dose.LastDose</td></tr></tbody></table>
-                    <button class="btn primary">متابعة الجرعة</button>
+                    <div class="fc-home-command-topline-start compact">
+                        <span class="fc-home-kicker">Executive Command Center</span>
+                        <div class="fc-home-command-status inline">
+                            <span>آخر تحديث</span>
+                            <strong>@LastUpdatedLabel</strong>
+                        </div>
+                    </div>
+
+                    <div class="fc-home-command-actions toolbar-actions">
+                        <button class="fc-home-btn fc-home-btn-light" type="button" @onclick="RefreshAsync">تحديث الآن</button>
+                        <button class="fc-home-btn fc-home-btn-primary" type="button" @onclick='() => Navigation.NavigateTo("/medications")'>متابعة الجرعات</button>
+                        <button class="fc-home-btn fc-home-btn-soft" type="button" @onclick='() => Navigation.NavigateTo("/rooms")'>إدارة الغرف</button>
+                    </div>
                 </div>
-            }
+
+                <div class="fc-home-command-grid">
+                    <div class="fc-home-command-copy">
+                        <div class="fc-home-command-title">
+                            <h1>لوحة قيادة دار القديس إسطفانوس</h1>
+                            <p>مركز تشغيل يومي يعرض حالة النزلاء، الالتزام الدوائي، الإشغال، الصيانة، والأنشطة الحيوية في عرض بصري موحد سريع القراءة.</p>
+                        </div>
+
+                        <div class="fc-home-command-highlights">
+                            <div class="fc-home-highlight-chip">
+                                <span>النزلاء</span>
+                                <strong>@RoomsModel.ResidentOptions.Count</strong>
+                                <small>ملف رعاية نشط</small>
+                            </div>
+                            <div class="fc-home-highlight-chip">
+                                <span>الإشغال</span>
+                                <strong>@(RoomsModel.TotalBeds == 0 ? 0 : (int)Math.Round((double)RoomsModel.OccupiedBeds * 100 / RoomsModel.TotalBeds))%</strong>
+                                <small>@RoomsModel.OccupiedBeds / @RoomsModel.TotalBeds سرير</small>
+                            </div>
+                            <div class="fc-home-highlight-chip">
+                                <span>الالتزام الدوائي</span>
+                                <strong>@Model.DoseCoveragePercent%</strong>
+                                <small>@Model.GivenDoses من @TotalDailyDosesSafe() جرعة</small>
+                            </div>
+                            <div class="fc-home-highlight-chip danger">
+                                <span>تنبيه مباشر</span>
+                                <strong>@Model.LateDoses</strong>
+                                <small>جرعات تحتاج متابعة</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <aside class="fc-home-spiritual-card">
+                        <div class="fc-home-spiritual-head">
+                            <span>آية اليوم</span>
+                            <small>رسالة رجاء وتشجيع للخدمة</small>
+                        </div>
+                        <blockquote>
+                            "طُوبَى لِلرُّحَمَاءِ، لأَنَّهُمْ يُرْحَمُونَ"
+                        </blockquote>
+                        <div class="fc-home-spiritual-foot">متى 5: 7</div>
+                        <div class="fc-home-spiritual-note">لتكن رعايتنا اليوم مملوءة رحمة واهتمامًا بكل نزيل.</div>
+                    </aside>
+                </div>
+            </div>
         </section>
 
-        <section class="three-col">
-            <div class="panel">
-                <h2>تنبيهات الغرف</h2>
-                <table class="data-table"><tbody>@foreach (var row in Model.RoomAlerts) { <tr><td><span class="status @row.Status">@row.Label</span></td><td>@row.Value</td></tr> }</tbody></table>
-                <h2>أحداث اليوم المباشرة</h2>
-                <table class="data-table"><tbody>@foreach (var row in Model.LiveEvents) { <tr><td>@row.Label</td><td>@row.Value</td></tr> }</tbody></table>
+        <section class="fc-home-priority-strip ultra-priority">
+            <div class="fc-home-section-head">
+                <div>
+                    <h2>أولويات الرعاية الآن</h2>
+                    <p>أهم الجرعات والحالات التي تحتاج متابعة مباشرة خلال الوردية الحالية.</p>
+                </div>
+                <span class="fc-home-count">@VisiblePriorityDoses.Count</span>
             </div>
-            <div class="panel map-card">
-                <h2>خريطة الدار</h2>
-                <div class="facility-map">
-                    @foreach (var room in Model.Rooms)
+
+            <div class="fc-home-dose-grid four-up">
+                @if (VisiblePriorityDoses.Count == 0)
+                {
+                    <div class="fc-home-empty fc-home-empty-wide">لا توجد جرعات قادمة تحتاج متابعة الآن.</div>
+                }
+                else
+                {
+                    @foreach (var dose in VisiblePriorityDoses)
                     {
-                        <div class="room @room.State">@room.Number</div>
+                        var photo = ResidentPhoto(dose.Resident);
+
+                        <article class="fc-home-dose-card ultra-dose @StateClass(dose.State)">
+                            <div class="fc-home-dose-top">
+                                <span class="fc-home-status @StateClass(dose.State)">@dose.Status</span>
+                                <strong>@dose.Time</strong>
+                            </div>
+
+                            <div class="fc-home-resident-line">
+                                @if (!string.IsNullOrWhiteSpace(photo))
+                                {
+                                    <img class="fc-home-avatar" src="@PhotoUrl(photo)" alt="@dose.Resident" />
+                                }
+                                else
+                                {
+                                    <span class="fc-home-avatar fallback">@ResidentInitial(dose.Resident)</span>
+                                }
+
+                                <div>
+                                    <h3>@dose.Resident</h3>
+                                    <p>@dose.Medicine - @dose.Dose</p>
+                                </div>
+                            </div>
+
+                            <div class="fc-home-dose-meta">
+                                <div>
+                                    <span>طريقة الاستخدام</span>
+                                    <strong>@dose.Method</strong>
+                                </div>
+                                <div>
+                                    <span>آخر جرعة</span>
+                                    <strong>@dose.LastDose</strong>
+                                </div>
+                            </div>
+
+                            <button class="fc-home-btn fc-home-btn-primary small" type="button" @onclick="() => OpenMedicationForDose(dose)">متابعة جرعات النزيل</button>
+                        </article>
                     }
-                </div>
-            </div>
-            <div class="panel">
-                <h2>جدول اليوم</h2>
-                <table class="data-table"><tbody>@foreach (var item in Model.TodaySchedule) { <tr><td>@item.Time</td><td>@item.Title</td></tr> }</tbody></table>
-                <h2>إجراءات سريعة</h2>
-                <div class="quick-actions">
-                    <a class="mini-card" href="medications">تسجيل دواء</a>
-                    <a class="mini-card" href="nutrition">إضافة وجبة</a>
-                    <a class="mini-card" href="resident">ملف نزيل</a>
-                    <a class="mini-card" href="reports">تقرير يومي</a>
-                </div>
+                }
             </div>
         </section>
 
-        <section class="four-col">
-            <div class="panel"><h3>ملخص اليوم حتى الآن</h3><table class="data-table"><tbody><tr><td>تم إعطاؤها</td><td>@Model.GivenDoses جرعة</td></tr><tr><td>متبقية</td><td>@Model.RemainingDoses جرعات</td></tr><tr><td>متأخرة</td><td>@Model.LateDoses جرعة</td></tr></tbody></table></div>
-            <div class="panel"><h3>نسبة تسليم الجرعات</h3><div class="donut"><span>@Model.DoseCoveragePercent%</span></div></div>
-            <div class="panel"><h3>ملخص المطبخ</h3><table class="data-table"><tbody><tr><td>نسبة تسليم الوجبات</td><td>@Model.MealCoveragePercent%</td></tr><tr><td>الحالة</td><td><span class="status">متابعة من قاعدة البيانات</span></td></tr></tbody></table></div>
-            <div class="panel"><h3>المخزون - تنبيهات</h3><table class="data-table"><tbody>@foreach (var row in Model.LiveEvents.Take(2)) { <tr><td>@row.Value</td><td><span class="status warn">متابعة</span></td></tr> }</tbody></table></div>
+        <section class="fc-home-workspace">
+            <article class="fc-home-panel fc-home-map-panel ultra-map">
+                <div class="fc-home-section-head">
+                    <div>
+                        <h2>خريطة الدار التفاعلية</h2>
+                        <p>خريطة حقيقية من بيانات الغرف: الإشغال، السعة، الصيانة، وتنبيهات العلاج.</p>
+                    </div>
+                    <div class="fc-home-map-legend">
+                        <span class="available">متاحة</span>
+                        <span class="occupied">مشغولة</span>
+                        <span class="warning">متابعة</span>
+                        <span class="critical">حرجة</span>
+                    </div>
+                </div>
+
+                <div class="fc-home-map-shell">
+                    <div class="fc-home-floors">
+                        @if (RoomsModel.FloorSections.Count == 0)
+                        {
+                            <div class="fc-home-empty">لا توجد غرف مسجلة حتى الآن.</div>
+                        }
+                        else
+                        {
+                            @foreach (var floor in RoomsModel.FloorSections)
+                            {
+                                <section class="fc-home-floor-block">
+                                    <header>
+                                        <div>
+                                            <h3>@floor.Name</h3>
+                                            <span>@floor.Occupied / @floor.Capacity إشغال</span>
+                                        </div>
+                                        <small>الدور @floor.Number</small>
+                                    </header>
+
+                                    <div class="fc-home-room-grid">
+                                        @foreach (var room in floor.Rooms)
+                                        {
+                                            <button type="button"
+                                                    class="fc-home-room-suite ultra-suite @RoomVisualClass(room) @(IsSelected(room.Id) ? "selected" : string.Empty)"
+                                                    @onclick="() => SelectRoom(room)">
+                                                <div class="fc-home-room-suite-head">
+                                                    <span class="fc-home-room-suite-number">غرفة @room.Number</span>
+                                                    <span class="fc-home-room-suite-badge @RoomVisualClass(room)">@RoomStatusText(room)</span>
+                                                </div>
+
+                                                <div class="fc-home-room-suite-meta">
+                                                    <span>@room.OccupancyText</span>
+                                                    <span>@room.Occupied / @room.Capacity سرير</span>
+                                                </div>
+
+                                                <div class="fc-home-room-suite-progress">
+                                                    <span style="@RoomFillStyle(room)"></span>
+                                                </div>
+
+                                                <div class="fc-home-room-mini-residents hotel-style">
+                                                    @foreach (var resident in room.Residents.Take(3))
+                                                    {
+                                                        if (!string.IsNullOrWhiteSpace(resident.PhotoPath))
+                                                        {
+                                                            <img src="@PhotoUrl(resident.PhotoPath)" alt="@resident.Name" />
+                                                        }
+                                                        else
+                                                        {
+                                                            <span>@ResidentInitial(resident.Name)</span>
+                                                        }
+                                                    }
+                                                </div>
+                                            </button>
+                                        }
+                                    </div>
+                                </section>
+                            }
+                        }
+                    </div>
+
+                    <aside class="fc-home-room-inspector">
+                        @if (SelectedRoom is null)
+                        {
+                            <div class="fc-home-empty">اختر غرفة من الخريطة لعرض التفاصيل.</div>
+                        }
+                        else
+                        {
+                            <div class="fc-home-inspector-head">
+                                <span>@SelectedRoom.Floor</span>
+                                <strong>غرفة @SelectedRoom.Number</strong>
+                                <small>@SelectedRoom.OccupancyText مشغول</small>
+                            </div>
+
+                            <div class="fc-home-inspector-status @RoomVisualClass(SelectedRoom)">
+                                @RoomStatusText(SelectedRoom)
+                            </div>
+
+                            <div class="fc-home-inspector-metrics">
+                                <div><span>السعة</span><strong>@SelectedRoom.Capacity</strong></div>
+                                <div><span>مشغول</span><strong>@SelectedRoom.Occupied</strong></div>
+                                <div><span>متاح</span><strong>@SelectedRoom.AvailableBeds</strong></div>
+                                <div><span>علاج متأخر</span><strong>@SelectedRoom.DelayedMedicationCount</strong></div>
+                            </div>
+
+                            <div class="fc-home-room-residents">
+                                <h4>النزلاء داخل الغرفة</h4>
+                                @if (SelectedRoom.Residents.Count == 0)
+                                {
+                                    <p>لا يوجد نزيل داخل هذه الغرفة.</p>
+                                }
+                                else
+                                {
+                                    @foreach (var resident in SelectedRoom.Residents)
+                                    {
+                                        <div class="fc-home-room-resident">
+                                            @if (!string.IsNullOrWhiteSpace(resident.PhotoPath))
+                                            {
+                                                <img src="@PhotoUrl(resident.PhotoPath)" alt="@resident.Name" />
+                                            }
+                                            else
+                                            {
+                                                <span>@ResidentInitial(resident.Name)</span>
+                                            }
+                                            <div>
+                                                <strong>@resident.Name</strong>
+                                                <small>@resident.Code</small>
+                                            </div>
+                                        </div>
+                                    }
+                                }
+                            </div>
+
+                            <div class="fc-home-inspector-actions">
+                                <button class="fc-home-btn fc-home-btn-primary small" type="button" @onclick='() => Navigation.NavigateTo("/rooms")'>إدارة الغرفة</button>
+                                <button class="fc-home-btn fc-home-btn-light small" type="button" @onclick='() => Navigation.NavigateTo("/residents")'>ملفات النزلاء</button>
+                            </div>
+                        }
+                    </aside>
+                </div>
+            </article>
+
+            <aside class="fc-home-right-rail">
+                <article class="fc-home-panel">
+                    <div class="fc-home-section-head compact">
+                        <div>
+                            <h2>تنبيهات الغرف</h2>
+                            <p>ملخص سريع للحالات التي تحتاج متابعة.</p>
+                        </div>
+                    </div>
+                    <div class="fc-home-row-list">
+                        @foreach (var row in Model.RoomAlerts)
+                        {
+                            <div class="fc-home-row">
+                                <span class="fc-home-status @StateClass(row.Status)">@row.Label</span>
+                                <strong>@row.Value</strong>
+                            </div>
+                        }
+                    </div>
+                </article>
+
+                <article class="fc-home-panel">
+                    <div class="fc-home-section-head compact">
+                        <div>
+                            <h2>جدول اليوم</h2>
+                            <p>مواعيد ثابتة للوردية الحالية.</p>
+                        </div>
+                    </div>
+                    <div class="fc-home-timeline">
+                        @foreach (var item in Model.TodaySchedule)
+                        {
+                            <div class="fc-home-timeline-item">
+                                <strong>@item.Time</strong>
+                                <span>@item.Title</span>
+                            </div>
+                        }
+                    </div>
+                </article>
+
+                <article class="fc-home-panel">
+                    <div class="fc-home-section-head compact">
+                        <div>
+                            <h2>الأحداث المباشرة</h2>
+                            <p>آخر ما تم تسجيله داخل النظام.</p>
+                        </div>
+                    </div>
+                    <div class="fc-home-live">
+                        @foreach (var row in Model.LiveEvents)
+                        {
+                            <div class="fc-home-live-row">
+                                <span>@row.Label</span>
+                                <strong>@row.Value</strong>
+                            </div>
+                        }
+                    </div>
+                </article>
+            </aside>
         </section>
 
-        <footer class="bottom-bar">
-            <span>آخر تحديث: @DateTime.Now.ToString("HH:mm")</span>
-            <span>نسبة تسليم الجرعات @Model.DoseCoveragePercent%</span>
-            <span>نسبة تسليم الوجبات @Model.MealCoveragePercent%</span>
+        <footer class="fc-home-footer">
+            <span>آخر تحديث: @LastUpdatedLabel</span>
+            <span>تسليم الجرعات: @Model.DoseCoveragePercent%</span>
+            <span>تسليم الوجبات: @Model.MealCoveragePercent%</span>
             <span>Fathers Care System</span>
         </footer>
     </div>
 }
 
 @code {
+    private readonly CancellationTokenSource clockCancellation = new();
     private DashboardViewModel? Model;
+    private RoomsWorkspaceViewModel? RoomsModel;
+    private RoomCardDto? SelectedRoom;
+    private DateTime LastLoadedAt;
+    private DateTime currentMoment = DateTime.Now;
+    private string? currentUserName;
+    private string? currentUserRole;
+    private Dictionary<string, string> ResidentPhotos = new(StringComparer.OrdinalIgnoreCase);
+    private Dictionary<string, Guid> ResidentIds = new(StringComparer.OrdinalIgnoreCase);
+
+    private string LastUpdatedLabel => LastLoadedAt == default ? "--:--" : LastLoadedAt.ToString("HH:mm");
+    private IReadOnlyList<MedicationRowDto> VisiblePriorityDoses =>
+        (Model?.PriorityDoses ?? [])
+        .Where(x => !IsGivenDose(x))
+        .OrderBy(x => ParseDoseTime(x.Time))
+        .Take(4)
+        .ToList();
+
+    private string CurrentDateText => currentMoment.ToString("dddd d MMMM yyyy", CultureInfo.CurrentUICulture);
+    private string CurrentTimeText => currentMoment.ToString("hh:mm tt", CultureInfo.CurrentUICulture);
+    private string CurrentUserName => string.IsNullOrWhiteSpace(currentUserName) ? "الأم مديرة الدار" : currentUserName!;
+    private string CurrentUserRole => string.IsNullOrWhiteSpace(currentUserRole) ? "المدير التنفيذي" : currentUserRole!;
+    private string CurrentUserInitial => string.IsNullOrWhiteSpace(CurrentUserName) ? "؟" : CurrentUserName.Trim()[0].ToString(CultureInfo.CurrentUICulture);
 
     protected override async Task OnInitializedAsync()
     {
+        await LoadCurrentUserAsync();
+        _ = RunClockAsync(clockCancellation.Token);
+        await RefreshAsync();
+    }
+
+    private async Task RefreshAsync()
+    {
         Model = await CareOverview.GetDashboardAsync();
+        RoomsModel = await RoomManagement.GetWorkspaceAsync();
+        await LoadResidentPhotosAsync();
+
+        var roomCards = RoomCards().ToList();
+        if (roomCards.Count > 0)
+        {
+            if (SelectedRoom is null || roomCards.All(room => room.Id != SelectedRoom.Id))
+            {
+                SelectedRoom = roomCards
+                    .OrderByDescending(room => room.State == "danger")
+                    .ThenByDescending(room => room.DelayedMedicationCount)
+                    .ThenByDescending(room => room.Occupied)
+                    .First();
+            }
+            else
+            {
+                SelectedRoom = roomCards.First(room => room.Id == SelectedRoom.Id);
+            }
+        }
+
+        LastLoadedAt = DateTime.Now;
+    }
+
+    private async Task LoadResidentPhotosAsync()
+    {
+        ResidentPhotos = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        ResidentIds = new Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase);
+        ResidentIds = new Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase);
+
+        try
+        {
+            var residents = await ResidentManagement.GetWorkspaceAsync();
+
+            foreach (var resident in residents.Residents)
+            {
+                if (!string.IsNullOrWhiteSpace(resident.FullName))
+                {
+                    if (!ResidentIds.ContainsKey(resident.FullName))
+                    {
+                        ResidentIds[resident.FullName] = resident.Id;
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(resident.PhotoPath) &&
+                        !ResidentPhotos.ContainsKey(resident.FullName))
+                    {
+                        ResidentPhotos[resident.FullName] = resident.PhotoPath;
+                    }
+                }
+            }
+        }
+        catch
+        {
+            foreach (var resident in RoomCards().SelectMany(room => room.Residents))
+            {
+                if (!string.IsNullOrWhiteSpace(resident.Name))
+                {
+                    if (!ResidentIds.ContainsKey(resident.Name))
+                    {
+                        ResidentIds[resident.Name] = resident.Id;
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(resident.PhotoPath) &&
+                        !ResidentPhotos.ContainsKey(resident.Name))
+                    {
+                        ResidentPhotos[resident.Name] = resident.PhotoPath;
+                    }
+                }
+            }
+        }
+    }
+
+    private IEnumerable<RoomCardDto> RoomCards() =>
+        RoomsModel?.FloorSections.SelectMany(section => section.Rooms) ?? Enumerable.Empty<RoomCardDto>();
+
+    private void SelectRoom(RoomCardDto room)
+    {
+        SelectedRoom = room;
+        StateHasChanged();
+    }
+
+    private bool IsSelected(Guid roomId) => SelectedRoom?.Id == roomId;
+
+    private void OpenMedicationForDose(MedicationRowDto dose)
+    {
+        if (ResidentIds.TryGetValue(dose.Resident, out var residentId))
+        {
+            Navigation.NavigateTo($"/medications/{residentId}");
+            return;
+        }
+
+        Navigation.NavigateTo("/medications");
+    }
+
+    private string ResidentPhoto(string residentName) =>
+        ResidentPhotos.TryGetValue(residentName, out var photo) ? photo : string.Empty;
+
+    private static string PhotoUrl(string? photoPath)
+    {
+        if (string.IsNullOrWhiteSpace(photoPath))
+        {
+            return string.Empty;
+        }
+
+        var normalized = photoPath.Trim().Replace("\\", "/");
+
+        if (normalized.StartsWith("~/", StringComparison.Ordinal))
+        {
+            return normalized[1..];
+        }
+
+        if (normalized.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+            normalized.StartsWith("https://", StringComparison.OrdinalIgnoreCase) ||
+            normalized.StartsWith("data:", StringComparison.OrdinalIgnoreCase) ||
+            normalized.StartsWith("/", StringComparison.Ordinal))
+        {
+            return normalized;
+        }
+
+        return "/" + normalized.TrimStart('/');
+    }
+
+    private static string ResidentInitial(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return "ن";
+        }
+
+        return name.Trim()[0].ToString();
+    }
+
+    private static string StateClass(string? state) => state?.ToLowerInvariant() switch
+    {
+        "danger" or "critical" or "urgent" or "late" or "red" => "critical",
+        "warning" or "warn" or "pending" or "gold" => "warning",
+        "success" or "safe" or "teal" or "" => "available",
+        "blue" or "purple" or "occupied" or "busy" or "info" => "occupied",
+        _ => "available"
+    };
+
+    private static string RoomVisualClass(RoomCardDto room)
+    {
+        if (room.DelayedMedicationCount > 0 || room.State == "danger" || room.MaintenanceState == "urgent")
+        {
+            return "critical";
+        }
+
+        if (room.State == "warn" || room.MaintenanceState == "open")
+        {
+            return "warning";
+        }
+
+        if (room.Occupied == 0)
+        {
+            return "available";
+        }
+
+        return room.Occupied >= room.Capacity ? "occupied full" : "occupied";
+    }
+
+    private static string RoomStatusText(RoomCardDto room)
+    {
+        if (room.DelayedMedicationCount > 0)
+        {
+            return $"علاج متأخر ({room.DelayedMedicationCount})";
+        }
+
+        if (room.MaintenanceState == "urgent")
+        {
+            return "صيانة عاجلة";
+        }
+
+        if (room.MaintenanceState == "open")
+        {
+            return "صيانة مفتوحة";
+        }
+
+        if (room.Occupied == 0)
+        {
+            return "متاحة";
+        }
+
+        if (room.Occupied >= room.Capacity)
+        {
+            return "ممتلئة";
+        }
+
+        return "مشغولة";
+    }
+    private static bool IsGivenDose(MedicationRowDto dose) =>
+        string.Equals(dose.Status, "تم الإعطاء", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(dose.State, string.Empty, StringComparison.OrdinalIgnoreCase);
+
+    private static TimeOnly ParseDoseTime(string? value) =>
+        TimeOnly.TryParseExact(value, "HH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsed)
+            ? parsed
+            : TimeOnly.MaxValue;
+
+    private static string RoomFillStyle(RoomCardDto room)
+    {
+        var percent = room.Capacity <= 0 ? 0 : Math.Clamp((int)Math.Round(room.Occupied * 100d / room.Capacity), 0, 100);
+        return $"width:{percent}%;";
+    }
+
+    private int TotalDailyDosesSafe()
+    {
+        if (Model is null)
+        {
+            return 1;
+        }
+
+        return Math.Max(Model.GivenDoses + Model.RemainingDoses + Model.LateDoses, 1);
+    }
+
+    
+    private void OpenMedications()
+    {
+        Navigation.NavigateTo("/medications");
+    }
+
+    private void OpenRooms()
+    {
+        Navigation.NavigateTo("/rooms");
+    }
+
+    private void OpenResidents()
+    {
+        Navigation.NavigateTo("/residents");
+    }
+
+    private void OpenDoseFollowUp(MedicationRowDto dose)
+    {
+        if (!string.IsNullOrWhiteSpace(dose.Resident) &&
+            ResidentIds.TryGetValue(dose.Resident, out var residentId))
+        {
+            Navigation.NavigateTo($"/medications?residentId={residentId}");
+            return;
+        }
+
+        Navigation.NavigateTo("/medications");
+    }
+
+    private void OpenSelectedRoom()
+    {
+        Navigation.NavigateTo("/rooms");
+    }
+
+    private async Task LoadCurrentUserAsync()
+    {
+        var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authenticationState.User;
+
+        if (user.Identity?.IsAuthenticated != true)
+        {
+            return;
+        }
+
+        currentUserName =
+            user.FindFirstValue("name")
+            ?? user.FindFirstValue(ClaimTypes.Name)
+            ?? user.Identity?.Name
+            ?? user.FindFirstValue(ClaimTypes.Email);
+
+        currentUserRole =
+            user.FindFirstValue(ClaimTypes.Role)
+            ?? user.FindFirstValue("role")
+            ?? "المدير التنفيذي";
+    }
+
+    private async Task RunClockAsync(CancellationToken cancellationToken)
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
+
+        try
+        {
+            while (await timer.WaitForNextTickAsync(cancellationToken))
+            {
+                currentMoment = DateTime.Now;
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        clockCancellation.Cancel();
+        clockCancellation.Dispose();
+        return ValueTask.CompletedTask;
     }
 }

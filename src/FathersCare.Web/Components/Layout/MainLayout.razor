@@ -1,31 +1,11 @@
 @inherits LayoutComponentBase
-@inject UiText T
 
-<div class="app-shell" dir="@T.Direction">
+<div class="app-shell">
     <aside class="app-sidebar">
         <NavMenu />
     </aside>
 
     <main class="app-main">
-        <header class="app-topbar">
-            <button class="icon-button" type="button" title="@T["Topbar.Menu"]">☰</button>
-            <div class="topbar-actions">
-                <LanguageSwitcher />
-                <span class="notify-dot">6</span>
-                <button class="icon-button" type="button" title="@T["Topbar.Alerts"]">!</button>
-                <span class="notify-dot">2</span>
-                <button class="icon-button" type="button" title="@T["Topbar.Messages"]">@T["Topbar.Messages"]</button>
-                <button class="icon-button" type="button" title="@T["Topbar.Calendar"]">@T["Topbar.Calendar"]</button>
-                <div class="user-chip">
-                    <div class="avatar">@T["Topbar.UserName"].FirstOrDefault()</div>
-                    <div>
-                        <strong>@T["Topbar.UserName"]</strong>
-                        <span>@T["Topbar.UserRole"]</span>
-                    </div>
-                </div>
-            </div>
-        </header>
-
         <article class="app-content">
             @Body
         </article>
@@ -33,7 +13,7 @@
 </div>
 
 <div id="blazor-error-ui" data-nosnippet>
-    @T["Error.Unexpected"]
-    <a href="." class="reload">@T["Error.Reload"]</a>
-    <span class="dismiss">×</span>
+    حدث خطأ غير متوقع.
+    <a href="." class="reload">إعادة تحميل</a>
+    <span class="dismiss">&times;</span>
 </div>

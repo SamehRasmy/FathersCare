@@ -29,7 +29,7 @@ public sealed class CreateMedicineScheduleCommandHandler(
         };
 
         await repository.AddMedicineScheduleAsync(schedule, cancellationToken);
-        
+
         // Generate dose administrations for the next 30 days
         var today = DateOnly.FromDateTime(DateTime.Today);
         var doses = new List<DoseAdministration>();

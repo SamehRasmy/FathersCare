@@ -28,6 +28,7 @@ public sealed record RoomCardDto(
     string OccupancyText,
     string State,
     string MaintenanceState,
+    int DelayedMedicationCount,
     IReadOnlyList<RoomResidentDto> Residents);
 
 public sealed record FloorSectionDto(Guid Id, string Name, int Number, int Capacity, int Occupied, IReadOnlyList<RoomCardDto> Rooms);

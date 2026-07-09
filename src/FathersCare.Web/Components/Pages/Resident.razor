@@ -3,11 +3,30 @@
 
 <PageTitle>النزلاء</PageTitle>
 
-<p>جاري فتح موديول النزلاء...</p>
+<HeadContent>
+    <link rel="stylesheet" href="/css/fathers-resident-redirect.css" />
+</HeadContent>
+
+<section class="fc-resident-redirect-page" dir="rtl">
+    <div class="fc-resident-redirect-card">
+        <div class="fc-resident-redirect-icon">ن</div>
+        <span class="fc-resident-redirect-kicker">FATHERS CARE</span>
+        <h1>جاري فتح ملف النزلاء</h1>
+        <p>يتم تحويلك الآن إلى شاشة إدارة النزلاء الرئيسية.</p>
+        <div class="fc-resident-redirect-progress" aria-hidden="true"><span></span></div>
+        <a class="fc-resident-redirect-link" href="residents">الانتقال يدويًا إلى قائمة النزلاء</a>
+    </div>
+</section>
 
 @code {
-    protected override void OnInitialized()
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        await Task.Delay(350);
         Navigation.NavigateTo("residents", replace: true);
     }
 }

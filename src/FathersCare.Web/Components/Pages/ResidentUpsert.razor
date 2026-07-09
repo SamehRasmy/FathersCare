@@ -3,17 +3,27 @@
 @rendermode InteractiveServer
 @using System.Linq.Expressions
 @using FathersCare.Application.Abstractions
+@using FathersCare.Application.Residents.Commands.CreateResident
+@using FathersCare.Application.Residents.Commands.UpdateResident
 @using FathersCare.Application.Residents.Validation
 @using FathersCare.Domain.Residents
 @using FathersCare.Web.Resources
 @using Microsoft.AspNetCore.Components.Forms
 @using Microsoft.Extensions.Localization
 @inject IResidentManagementService ResidentsService
+@inject ICommandHandler<CreateResidentCommand, Guid> CreateResidentHandler
+@inject ICommandHandler<UpdateResidentCommand, bool> UpdateResidentHandler
 @inject NavigationManager Navigation
 @inject IStringLocalizer<ResidentsResource> R
 @inject IStringLocalizer<SharedResource> S
 
 <PageTitle>@(IsEdit ? R["EditResident"] : R["NewResident"])</PageTitle>
+
+<HeadContent>
+    <link rel="stylesheet" href="/css/fathers-residents.css" />
+</HeadContent>
+
+<div class="fc-residents-page fc-resident-editor-page">
 
 <section class="page-title">
     <div>
@@ -267,6 +277,7 @@ else
     </EditForm>
 }
 
+</div>
 @code {
     [Parameter] public Guid? ResidentId { get; set; }
 
@@ -405,14 +416,14 @@ else
             Guid savedId;
             if (ResidentId.HasValue)
             {
-                await ResidentsService.UpdateAsync(ResidentId.Value, dto);
+                await UpdateResidentHandler.Handle(new UpdateResidentCommand(ResidentId.Value, dto), CancellationToken.None);
                 savedId = ResidentId.Value;
                 SaveMessage = R["SaveSuccessUpdated"];
                 SaveFailed = false;
             }
             else
             {
-                savedId = await ResidentsService.CreateAsync(dto);
+                savedId = await CreateResidentHandler.Handle(new CreateResidentCommand(dto), CancellationToken.None);
                 SaveMessage = R["SaveSuccessCreated"];
                 SaveFailed = false;
             }

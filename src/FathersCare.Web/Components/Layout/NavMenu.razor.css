@@ -1,6 +1,13 @@
+/* Fathers Care Sidebar Ultra */
+:host {
+    display: block;
+}
+
 .brand-panel {
     text-align: center;
-    padding: 4px 4px 18px;
+    padding: 0 4px 12px;
+    margin-bottom: 8px;
+    border-bottom: 1px solid rgba(255,255,255,.12);
 }
 
 .crest {
@@ -10,10 +17,11 @@
     display: grid;
     place-items: center;
     border-radius: 50%;
-    border: 3px solid #fff;
-    outline: 2px solid rgba(255,255,255,.35);
+    border: 3px solid rgba(255,255,255,.92);
+    outline: 1px solid rgba(255,255,255,.32);
     background: #fff;
     overflow: hidden;
+    box-shadow: 0 14px 32px rgba(0,0,0,.20), inset 0 1px 0 rgba(255,255,255,.7);
 }
 
 .crest img {
@@ -24,93 +32,201 @@
 }
 
 .brand-ar {
-    font-size: 14px;
-    line-height: 1.7;
-    font-weight: 600;
+    color: rgba(255,255,255,.96);
+    font-size: 13px;
+    line-height: 1.45;
+    font-weight: 950;
+}
+
+.brand-ar span {
+    display: inline-block;
+    margin-top: 2px;
+    color: rgba(255,255,255,.82);
+    font-size: 11.5px;
+    font-weight: 850;
 }
 
 .brand-en {
-    margin-top: 14px;
-    color: #d59c2b;
+    margin-top: 8px;
+    color: #f1b83d;
     font-family: "Segoe UI Variable Display", "Segoe UI", Tahoma, Arial, sans-serif;
-    font-size: 29px;
-    font-weight: 650;
-    letter-spacing: 0;
+    font-size: 20px;
+    line-height: 1;
+    font-weight: 950;
+    letter-spacing: .2px;
 }
 
 .brand-tagline {
-    margin-top: 6px;
-    font-size: 17px;
-    font-weight: 600;
+    margin-top: 8px;
+    color: rgba(255,255,255,.88);
+    font-size: 12px;
+    line-height: 1.35;
+    font-weight: 850;
 }
 
 .side-nav {
     display: grid;
-    gap: 7px;
+    gap: 10px;
+    margin-top: 10px;
+    padding: 0 2px 10px;
 }
 
-.side-nav a {
-    height: 44px;
+.nav-section {
+    display: grid;
+    gap: 6px;
+}
+
+.nav-section-title {
+    display: flex;
+    align-items: center;
+    min-height: 22px;
+    padding: 0 10px;
+    color: rgba(255,255,255,.55);
+    font-size: 10.5px;
+    line-height: 1;
+    font-weight: 950;
+    letter-spacing: 0;
+}
+
+.nav-item {
+    min-height: 41px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 15px;
-    border-radius: 8px;
-    color: #fff;
-    text-decoration: none;
-    font-weight: 600;
+    gap: 8px;
+    padding: 0 11px;
+    border-radius: 13px;
+    color: rgba(255,255,255,.90);
+    text-decoration: none !important;
+    font-weight: 900;
+    line-height: 1.25;
+    border: 1px solid rgba(255,255,255,.065);
+    background: rgba(255,255,255,.035);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.035);
+    position: relative;
+    overflow: hidden;
+    transition: transform .16s ease, background .16s ease, border-color .16s ease, color .16s ease, box-shadow .16s ease;
 }
 
-.side-nav a::after {
+.nav-item::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    flex: 0 0 7px;
+    border-radius: 50%;
+    background: rgba(255,255,255,.30);
+    box-shadow: 0 0 0 4px rgba(255,255,255,.045);
+    order: -1;
+}
+
+.nav-item::after {
     content: "›";
-    font-size: 23px;
+    color: rgba(255,255,255,.44);
+    font-size: 18px;
+    line-height: 1;
+    flex: 0 0 auto;
 }
 
-:host-context(html[dir="rtl"]) .side-nav a::after {
+:host-context(html[dir="rtl"]) .nav-item::after {
     content: "‹";
 }
 
-.side-nav a.active {
-    background: linear-gradient(180deg, #d39b2d, #bf841c);
-    box-shadow: inset 0 0 0 1px rgba(255,255,255,.16);
+.nav-label {
+    min-width: 0;
+    flex: 1 1 auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: start;
+    font-size: 13.5px;
+    font-weight: 950;
+    text-decoration: none !important;
 }
 
-.side-nav a:hover {
-    background: rgba(255,255,255,.1);
+.nav-item:hover,
+.nav-item:focus,
+.nav-item:active,
+.nav-item:visited,
+.nav-label {
+    text-decoration: none !important;
 }
 
-.sidebar-card {
-    margin-top: 13px;
-    padding: 13px;
-    border: 1px solid rgba(255,255,255,.12);
-    border-radius: 10px;
-    background: rgba(255,255,255,.045);
+.nav-item:not(.disabled):hover {
+    color: #fff;
+    background: rgba(255,255,255,.10);
+    border-color: rgba(255,255,255,.14);
+    box-shadow: 0 12px 24px rgba(0,0,0,.16), inset 0 1px 0 rgba(255,255,255,.06);
+    transform: translateY(-1px);
 }
 
-.profile-card {
-    display: flex;
-    gap: 12px;
-    align-items: center;
+.nav-item.active {
+    color: #061a3c;
+    background: linear-gradient(180deg, #f7cf72 0%, #dca52e 100%);
+    border-color: rgba(255,225,143,.95);
+    box-shadow: 0 14px 26px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.55);
 }
 
-.profile-card strong,
-.profile-card span,
-.profile-card small {
-    display: block;
+.nav-item.active::before {
+    background: #061a3c;
+    box-shadow: 0 0 0 4px rgba(6,26,60,.09);
 }
 
-.profile-card small {
-    color: #53d56d;
+.nav-item.active::after,
+.nav-item.active .nav-label {
+    color: #061a3c;
 }
 
-.avatar.large {
-    width: 58px;
-    height: 58px;
+.nav-item.active,
+.nav-item.active:hover,
+.nav-item.active:focus,
+.nav-item.active:visited,
+.nav-item.active .nav-label {
+    text-decoration: none !important;
 }
 
-.weather-card,
-.time-card {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+.nav-item.disabled {
+    cursor: default;
+    color: rgba(255,255,255,.58);
+    background: rgba(255,255,255,.026);
+    border-color: rgba(255,255,255,.045);
+}
+
+.nav-item.disabled::before {
+    background: rgba(255,255,255,.18);
+    box-shadow: 0 0 0 4px rgba(255,255,255,.026);
+}
+
+.nav-item.disabled::after {
+    content: "";
+    display: none;
+}
+
+.nav-badge {
+    flex: 0 0 auto;
+    margin-inline-start: 6px;
+    padding: 2px 7px 3px;
+    border-radius: 999px;
+    background: rgba(255,255,255,.10);
+    color: rgba(255,255,255,.72);
+    font-size: 9.5px;
+    line-height: 1;
+    font-weight: 950;
+    white-space: nowrap;
+}
+
+.nav-item:focus-visible {
+    outline: 2px solid rgba(241,184,61,.55);
+    outline-offset: 2px;
+}
+
+@media (max-width: 980px) {
+    .side-nav {
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        align-items: start;
+    }
+
+    .brand-panel {
+        max-width: 280px;
+        margin-inline: auto;
+    }
 }
